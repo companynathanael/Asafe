@@ -39,6 +39,31 @@
   const byId = (id) => state.nodes.find((n) => n.id === id);
   const nameOf = (id) => (id === "asafe" ? "Asafe" : byId(id)?.name ?? id);
 
+  /* ---------------- tela de carregamento ---------------- */
+  (async () => {
+    const splash = $("#splash"), status = $("#splash-status"), bar = $("#splash-bar");
+    const steps = [
+      ["inicializando núcleo de servidores", 18],
+      ["carregando armazenamento de dados", 36],
+      ["gerando logins das IA's", 55],
+      ["abrindo linhas conexionais", 72],
+      ["sincronizando APIs com o Gather", 88],
+      ["ativando observador", 100],
+    ];
+    const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    for (const [txt, pct] of steps) {
+      status.style.opacity = 0; await wait(120);
+      status.textContent = txt; status.style.opacity = 1;
+      bar.style.width = pct + "%";
+      await wait(420 + Math.random() * 260);
+    }
+    splash.classList.add("ready");
+    status.textContent = "asafe online";
+    await wait(1000);
+    splash.classList.add("done");
+    setTimeout(() => splash.remove(), 800);
+  })();
+
   /* ---------------- relógio & topo ---------------- */
   const tick = () => ($("#clock").textContent = now());
   tick(); setInterval(tick, 1000);
@@ -494,7 +519,7 @@
     permLeft = Math.max(0, permLeft - 1);
     $("#perm-timer").textContent = permLeft + "s";
   }, 1000);
-  setTimeout(() => state.pendingPerm && toast("Horácio pede permissão para operar dentro de Miquéias"), 900);
+  setTimeout(() => state.pendingPerm && toast("Horácio pede permissão para operar dentro de Miquéias"), 5200);
 
   function resolvePerm(ok) {
     state.pendingPerm = false;

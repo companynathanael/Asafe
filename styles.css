@@ -410,3 +410,33 @@ h1 { font-size: 28px; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 
 .card > * { flex-shrink: 0; }
 .field { min-width: 0; }
 .field input { width: 100%; min-width: 0; }
+
+/* =========================================================
+   TELA DE CARREGAMENTO
+   ========================================================= */
+.splash {
+  position: fixed; inset: 0; z-index: 100; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background: radial-gradient(circle at 50% 42%, #1e0306 0%, #0d0204 32%, #050506 62%, #030304 100%);
+  transition: opacity 0.7s ease, visibility 0.7s;
+}
+.splash.done { opacity: 0; visibility: hidden; pointer-events: none; }
+.splash-glow { position: absolute; left: 50%; top: 42%; width: 720px; height: 720px; transform: translate(-50%, -50%); border-radius: 50%; background: radial-gradient(circle, rgba(229, 22, 43, 0.10), transparent 60%); pointer-events: none; animation: pulse 3.2s ease-in-out infinite; }
+.splash-orb { position: relative; width: 140px; height: 140px; display: grid; place-items: center; margin-top: -40px; }
+.splash-orb::before { content: ""; position: absolute; inset: 14px; border-radius: 50%; background: radial-gradient(circle, rgba(229, 22, 43, 0.22), rgba(20, 4, 6, 0.9) 70%); }
+.splash-rings { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.splash-rings circle { fill: none; transform-origin: 70px 70px; }
+.ring-base { stroke: rgba(229, 22, 43, 0.35); stroke-width: 1.2; }
+.ring-red { stroke: var(--red-2); stroke-width: 2; stroke-linecap: round; stroke-dasharray: 120 301; filter: drop-shadow(0 0 4px var(--red-2)); animation: ring-spin 1.6s cubic-bezier(.6,.1,.4,.9) infinite; }
+.ring-inner { stroke: rgba(255, 255, 255, 0.06); stroke-width: 1; }
+.ring-white { stroke: rgba(255, 255, 255, 0.45); stroke-width: 1.4; stroke-linecap: round; stroke-dasharray: 60 280; animation: ring-spin 2.4s linear infinite reverse; }
+@keyframes ring-spin { to { transform: rotate(360deg); } }
+.splash-symbol { position: relative; width: 64px; filter: drop-shadow(0 0 14px rgba(229, 22, 43, 0.55)); animation: breathe 2.4s ease-in-out infinite; }
+@keyframes breathe { 50% { transform: scale(1.05); filter: drop-shadow(0 0 22px rgba(229, 22, 43, 0.8)); } }
+.splash-logo { display: flex; align-items: center; gap: 12px; margin-top: 38px; opacity: 0.22; transition: opacity 0.6s ease; }
+.splash-logo img:first-child { height: 38px; }
+.splash-logo img:last-child { height: 20px; margin-top: 3px; }
+.splash.ready .splash-logo { opacity: 1; }
+.splash-status { margin-top: 22px; font-size: 11px; letter-spacing: 0.04em; color: var(--text-2); min-height: 14px; transition: opacity 0.2s; }
+.splash-bar { width: 166px; height: 2px; margin-top: 10px; background: rgba(255, 255, 255, 0.06); border-radius: 2px; overflow: hidden; }
+.splash-bar i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--red-3), var(--red-2)); box-shadow: 0 0 8px var(--red-2); transition: width 0.45s ease; }
+.splash.ready .ring-red { animation-duration: 3s; }
