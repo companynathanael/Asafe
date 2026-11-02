@@ -14,8 +14,8 @@
   /* ---------------- estado ---------------- */
   const NODE_W = 236, NODE_H = 66;
   const CORES = {
-    red: { w: 190, hh: 164, h: 230, img: "assets/asafe-symbol-256.png", name: "ASAFE", sub: "NÚCLEO · SERVIDORES · APIs" },
-    cyan: { w: 140, hh: 108, h: 165, img: "assets/gather-symbol.png", name: "GATHER", sub: "RECEBE AS APIs" },
+    red: { w: 190, hh: 164, h: 230, img: "assets/asafe-symbol-256.png", name: "ASAFE", sub: "NÚCLEO · SERVIDORES · DADOS" },
+    cyan: { w: 140, hh: 108, h: 165, img: "assets/gather-symbol.png", name: "GATHER", sub: "ORQUESTRA APIs" },
   };
   const coreDim = (n) => CORES[n.theme || "red"];
 
@@ -25,7 +25,7 @@
       { id: "gather", type: "core", theme: "cyan", name: "Gather", x: 760, y: 330, live: true },
     ],
     edges: [
-      { id: "e1", from: "asafe", to: "gather", type: "gather", label: "APIs" },
+      { id: "e1", from: "asafe", to: "gather", type: "gather", label: "conexão" },
     ],
     view: { x: 0, y: 0, z: 1 },
     selected: null,
@@ -43,7 +43,7 @@
       ["carregando armazenamento de dados", 36],
       ["gerando logins das IA's", 55],
       ["abrindo linhas conexionais", 72],
-      ["sincronizando APIs com o Gather", 88],
+      ["conectando ao Gather", 88],
       ["ativando observador", 100],
     ];
     const wait = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -332,7 +332,7 @@
     return `<div class="legend">
       <div><i style="border-color:var(--red)"></i>dados → Asafe</div>
       <div><i style="border-color:rgba(255,255,255,.6)"></i>Asafe → IA</div>
-      <div><i style="border-color:var(--cyan);border-top-style:dashed"></i>API → Gather</div>
+      <div><i style="border-color:var(--cyan);border-top-style:dashed"></i>Asafe ↔ Gather</div>
       <div><i style="border-color:var(--red-2);border-top-style:dashed"></i>linha conexional (IA opera IA)</div>
     </div>`;
   }
@@ -371,17 +371,16 @@
     if (id === "asafe") {
       inspector.innerHTML = `
         <div class="card-title">Núcleo <span class="tag solid">Ativo</span></div>
-        <div class="srv-head">${av({ id: "asafe", name: "Asafe" }, "lg")}<div class="t"><b>Asafe</b><span>Desenvolvedor · Servidores · Dados · APIs</span></div></div>
+        <div class="srv-head">${av({ id: "asafe", name: "Asafe" }, "lg")}<div class="t"><b>Asafe</b><span>Servidores · Dados · Conexões · Permissões</span></div></div>
         <dl class="kv">
           <dt>Servidores</dt><dd>${servers.length} gerado${servers.length === 1 ? "" : "s"}</dd>
           <dt>Linhas</dt><dd>${state.edges.length} ativa${state.edges.length === 1 ? "" : "s"}</dd>
-          <dt>APIs</dt><dd>0 entregues ao Gather</dd>
           <dt>Armazenado</dt><dd>0 B</dd>
         </dl>
         <div class="label-xs">Responsabilidades</div>
         <div class="route">
           <span class="chip">${icon("code", "xs")}Desenvolve</span><span class="chip">${icon("db", "xs")}Armazena</span>
-          <span class="chip">${icon("server", "xs")}Gera servidores</span><span class="chip">${icon("send", "xs")}Entrega APIs</span>
+          <span class="chip">${icon("server", "xs")}Gera servidores</span><span class="chip">${icon("shield", "xs")}Permissões</span>
           <span class="chip red">${icon("link", "xs")}Cria linhas</span><span class="chip red">${icon("eye", "xs")}Observa</span>
         </div>
         ${legend()}`;
@@ -390,13 +389,12 @@
     if (id === "gather") {
       inspector.innerHTML = `
         <div class="card-title">Gather <span class="tag cyan solid">Ativo</span></div>
-        <div class="srv-head">${av({ id: "gather", name: "Gather" }, "lg")}<div class="t"><b>Gather</b><span>Recebe as APIs desenvolvidas pelo Asafe</span></div></div>
+        <div class="srv-head">${av({ id: "gather", name: "Gather" }, "lg")}<div class="t"><b>Gather</b><span>Gerencia e orquestra as próprias APIs</span></div></div>
         <div class="label-xs">Rota</div>
         <div class="route"><span class="chip red"><img class="chip-logo" src="assets/asafe-symbol-red.png" alt="" />Asafe</span>${icon("arrow", "xs muted")}<span class="chip cyan"><img class="chip-logo" src="assets/gather-symbol-cyan.png" alt="" />Gather</span></div>
         <dl class="kv">
           <dt>Servidor</dt><dd>gather.nathanael.ind ${icon("copy", "xs")}</dd>
-          <dt>APIs</dt><dd>0 recebidas</dd>
-          <dt>Status</dt><dd>aguardando APIs</dd>
+          <dt>Status</dt><dd>conectado ao Asafe</dd>
         </dl>
         ${legend()}`;
       return;
@@ -419,7 +417,7 @@
       <div class="net-list">
         ${conns.map((e) => {
           const other = e.from === id ? e.to : e.from;
-          const label = { gather: "recebe APIs", data: "envia dados", out: "recebe do Asafe", api: "recebe APIs", cx: e.from === id ? "opera dentro" : "é operada por" }[e.type];
+          const label = { gather: "conectado", data: "envia dados", out: "recebe do Asafe", cx: e.from === id ? "opera dentro" : "é operada por" }[e.type];
           return `<div class="net-item" data-edge="${e.id}">
             ${av(byId(other) || { id: other }, "sm")}
             <span class="ni-name">${nameOf(other)}</span><span class="ni-meta">${label}</span></div>`;
@@ -435,7 +433,7 @@
   }
 
   function renderSimpleEdge(e) {
-    const desc = { gather: "APIs desenvolvidas pelo Asafe sendo entregues ao Gather.", data: "Dados fluindo para o núcleo do Asafe.", out: "O Asafe envia instruções e respostas para a IA.", api: "APIs desenvolvidas pelo Asafe sendo entregues ao Gather." }[e.type];
+    const desc = { gather: "Conexão entre o Asafe e o Gather.", data: "Dados fluindo para o núcleo do Asafe.", out: "O Asafe envia instruções e respostas para a IA." }[e.type];
     inspector.innerHTML = `
       <div class="card-title">Linha <span class="tag dim">${e.type}</span></div>
       <div class="route"><span class="chip ${e.from === "asafe" ? "red" : ""}">${nameOf(e.from)}</span>${icon("arrow", "xs muted")}<span class="chip ${e.to === "asafe" ? "red" : ""}">${nameOf(e.to)}</span></div>
@@ -565,7 +563,7 @@
      SERVIDORES
      ========================================================= */
   const servers = [
-    { id: "gather", name: "Gather", role: "Recebe as APIs do Asafe", kind: "aux", theme: "cyan", cpu: 0, mem: 0, up: "agora", status: "Ao vivo" },
+    { id: "gather", name: "Gather", role: "Orquestra as próprias APIs", kind: "aux", theme: "cyan", cpu: 0, mem: 0, up: "agora", status: "Ao vivo" },
   ];
   const spark = (seed) => {
     let pts = "";
@@ -614,27 +612,6 @@
   $("#collections").innerHTML = `
     <tr><th>Coleção</th><th>Dono</th><th>Registros</th><th>Tamanho</th><th>Atualizado</th></tr>
     <tr><td colspan="5"><div class="empty">Nenhuma coleção ainda.</div></td></tr>`;
-
-  /* =========================================================
-     APIs → Gather
-     ========================================================= */
-  const cols = [
-    { t: "Planejada", items: [] },
-    { t: "Em desenvolvimento", items: [] },
-    { t: "Testes", items: [] },
-    { t: "Entregue ao Gather", gather: true, items: [] },
-  ];
-  $("#kanban").innerHTML = cols.map((c) => `
-    <div class="col glass ${c.gather ? "gather" : ""}">
-      <div class="col-head">${c.gather ? `<span class="dot"></span>` : `<span class="dot off"></span>`}${c.t}<span class="count">${c.items.length}</span></div>
-      ${c.items.map(([m, p, d, who, prog]) => `
-        <div class="api">
-          <div class="api-top"><span class="method ${m === "GET" ? "get" : ""}">${m}</span><span class="api-path">${p}</span></div>
-          <div class="api-desc">${d}</div>
-          ${prog ? `<div class="bar"><i style="width:${prog}%"></i></div>` : ""}
-          <div class="api-foot"><span>${c.gather ? "entregue · v1" : prog ? prog + "%" : "backlog"}</span><span>${c.gather ? "→ " : "p/ "}${who}</span></div>
-        </div>`).join("") || `<div class="empty">Nenhuma API</div>`}
-    </div>`).join("");
 
   /* =========================================================
      OBSERVADOR

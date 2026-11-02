@@ -8,10 +8,9 @@ Núcleo de IA's da Nathanael Industries — tema preto e vermelho.
 
 | Aba | O que mostra |
 | --- | --- |
-| **Linhas Conexionais** | Quadro com o núcleo Asafe e as IA's. Uma *linha conexional* permite que uma IA opere **dentro** de outra (clicar, digitar, ler tela, pensar, executar). O painel lateral mostra a interface da IA operada em tempo real. |
+| **Linhas Conexionais** | Quadro com o núcleo Asafe e as IA's. Uma *linha conexional* permite que uma IA opere **dentro** de outra (clicar, digitar, ler tela, pensar, executar). O painel lateral mostra a interface da IA operada em tempo real. O **Gather** (ciano) aparece conectado ao Asafe; as APIs ficam com ele. |
 | **Servidores** | Servidores/logins gerados pelo Asafe para cada IA. |
 | **Dados** | Armazenamento por IA e coleções. |
-| **APIs** | Pipeline de APIs desenvolvidas pelo Asafe até a entrega ao **Gather**. |
 | **Observador** | Feed ao vivo das ações entre IA's. |
 | **Permissões** | Pedidos pendentes e permissões ativas. |
 
