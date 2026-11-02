@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Asafe · Núcleo de IA's</title>
+  <link rel="icon" type="image/png" href="assets/favicon.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <!-- Ícones (sprite) -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <symbol id="i-db" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v6c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 11v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/></symbol>
+      <symbol id="i-link" viewBox="0 0 24 24"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="12" cy="18" r="2.5"/><circle cx="12" cy="11" r="1.5"/><path d="M8 7.5l3 2.5M16 7.5l-3 2.5M12 12.5v3"/></symbol>
+      <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6z"/><path d="M9 12l2 2 4-4"/></symbol>
+      <symbol id="i-server" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="7" rx="2"/><rect x="3" y="13" width="18" height="7" rx="2"/><path d="M7 7.5h.01M7 16.5h.01M11 7.5h6M11 16.5h6"/></symbol>
+      <symbol id="i-code" viewBox="0 0 24 24"><path d="M8 7l-5 5 5 5M16 7l5 5-5 5M14 4l-4 16"/></symbol>
+      <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></symbol>
+      <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+      <symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
+      <symbol id="i-fit" viewBox="0 0 24 24"><path d="M4 9V5a1 1 0 011-1h4M15 4h4a1 1 0 011 1v4M20 15v4a1 1 0 01-1 1h-4M9 20H5a1 1 0 01-1-1v-4"/><rect x="9" y="9" width="6" height="6" rx="1"/></symbol>
+      <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></symbol>
+      <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></symbol>
+      <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 20V9M7 14l5-5 5 5M5 4h14"/></symbol>
+      <symbol id="i-cursor" viewBox="0 0 24 24"><path d="M5 3l14 7-6 2-2 6z"/></symbol>
+      <symbol id="i-keyboard" viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/></symbol>
+      <symbol id="i-brain" viewBox="0 0 24 24"><path d="M9 4a3 3 0 00-3 3 3 3 0 00-2 5 3 3 0 002 5 3 3 0 003 3 3 3 0 003-3V7a3 3 0 00-3-3z"/><path d="M15 4a3 3 0 013 3 3 3 0 012 5 3 3 0 01-2 5 3 3 0 01-3 3 3 3 0 01-3-3"/></symbol>
+      <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4l13 8-13 8z"/></symbol>
+      <symbol id="i-key" viewBox="0 0 24 24"><circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M17 6l3 3M14 9l2 2"/></symbol>
+      <symbol id="i-send" viewBox="0 0 24 24"><path d="M4 12l16-8-6 16-3-7z"/></symbol>
+      <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+      <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></symbol>
+      <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 00-1-1H5a1 1 0 00-1 1v10a1 1 0 001 1h3"/></symbol>
+      <symbol id="i-pause" viewBox="0 0 24 24"><path d="M8 5v14M16 5v14"/></symbol>
+      <symbol id="i-dots" viewBox="0 0 24 24"><path d="M5 12h.01M12 12h.01M19 12h.01"/></symbol>
+      <symbol id="i-chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></symbol>
+      <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+    </defs>
+  </svg>
+
+  <div class="app">
+    <!-- ============ TOPO ============ -->
+    <header class="topbar glass">
+      <div class="brand">
+        <img class="brand-symbol" src="assets/asafe-symbol-256.png" alt="" />
+        <img class="brand-word" src="assets/asafe-wordmark.png" alt="asafe" />
+        <span class="brand-sep"></span>
+        <span class="brand-sub">Núcleo de IA's<br/>Nathanael Industries</span>
+      </div>
+
+      <nav class="tabs" role="tablist">
+        <button class="tab active" data-view="linhas"><svg class="ic"><use href="#i-link"/></svg>Linhas Conexionais</button>
+        <button class="tab" data-view="servidores"><svg class="ic"><use href="#i-server"/></svg>Servidores</button>
+        <button class="tab" data-view="dados"><svg class="ic"><use href="#i-db"/></svg>Dados</button>
+        <button class="tab" data-view="apis"><svg class="ic"><use href="#i-code"/></svg>APIs</button>
+        <button class="tab" data-view="observador"><svg class="ic"><use href="#i-eye"/></svg>Observador</button>
+        <button class="tab" data-view="permissoes"><svg class="ic"><use href="#i-shield"/></svg>Permissões <span class="badge" id="perm-badge">1</span></button>
+      </nav>
+
+      <div class="top-right">
+        <div class="stats">
+          <div class="stat"><b id="st-nodes">4</b><span>nós</span></div>
+          <div class="stat"><b id="st-lines">4</b><span>linhas</span></div>
+          <div class="stat"><b id="st-data">2,4 GB</b><span>dados</span></div>
+        </div>
+        <div class="live-pill"><span class="dot pulse"></span><span id="live-text">núcleo · 3 ao vivo</span><span class="mono" id="clock">--:--:--</span></div>
+        <button class="icon-btn" title="Exportar rede"><svg class="ic"><use href="#i-download"/></svg></button>
+        <button class="icon-btn" title="Importar rede"><svg class="ic"><use href="#i-upload"/></svg></button>
+      </div>
+    </header>
+
+    <main class="main">
+      <!-- ============ LINHAS CONEXIONAIS ============ -->
+      <section class="view active" id="view-linhas">
+        <div class="board glass" id="board">
+          <div class="board-grid"></div>
+          <div class="board-vignette"></div>
+
+          <div class="board-tools glass-2">
+            <button class="tool" data-zoom="in" title="Aproximar"><svg class="ic"><use href="#i-plus"/></svg></button>
+            <span class="zoom-val mono" id="zoom-val">100%</span>
+            <button class="tool" data-zoom="out" title="Afastar"><svg class="ic"><use href="#i-minus"/></svg></button>
+            <button class="tool" data-zoom="fit" title="Enquadrar"><svg class="ic"><use href="#i-fit"/></svg></button>
+            <button class="tool" data-zoom="center" title="Centralizar no Asafe"><svg class="ic"><use href="#i-target"/></svg></button>
+          </div>
+
+          <div class="board-mode glass-2">
+            <span class="mono label-xs">modo</span>
+            <button class="seg active">Observar</button>
+            <button class="seg">Conectar</button>
+          </div>
+
+          <div class="world" id="world">
+            <svg class="edges" id="edges" width="1" height="1"></svg>
+            <div id="nodes"></div>
+          </div>
+
+          <!-- pedido de permissão -->
+          <div class="perm-pop glass-strong" id="perm-pop">
+            <div class="perm-head">
+              <span class="avatar red sm">H</span>
+              <b>Horácio</b><svg class="ic xs muted"><use href="#i-arrow"/></svg><b>Miquéias</b>
+              <span class="mono muted perm-timer" id="perm-timer">60s</span>
+            </div>
+            <div class="perm-scope">
+              <span class="mono red-t">linha.operar</span>
+              <span class="muted">· ações: clicar, digitar, ler tela, pensar</span>
+            </div>
+            <p class="perm-desc">Horácio quer abrir uma <b>Linha Conexional</b> e operar <b>dentro</b> da interface do Miquéias.</p>
+            <div class="perm-quote mono">pedido do senhor: “@miqueias diga olá”</div>
+            <div class="perm-actions">
+              <div class="select">
+                <select>
+                  <option>Só desta vez</option>
+                  <option>Nesta sessão</option>
+                  <option>Até o Asafe reiniciar</option>
+                  <option>Sempre</option>
+                </select>
+                <svg class="ic xs"><use href="#i-chev"/></svg>
+              </div>
+              <button class="btn ghost-red" data-perm="deny">Recusar</button>
+              <button class="btn primary" data-perm="ok">Aceitar</button>
+            </div>
+          </div>
+        </div>
+
+        <aside class="side">
+          <div class="card glass">
+            <div class="card-title">Adicionar IA</div>
+            <div class="form-row">
+              <label class="field"><span>Nome</span><input id="f-name" placeholder="ex.: Miquéias" /></label>
+              <label class="field"><span>Função</span><input id="f-role" placeholder="ex.: Análise de dados" /></label>
+            </div>
+            <div class="seg-group" id="f-kind">
+              <button class="seg active" data-kind="aux">IA auxiliar</button>
+              <button class="seg" data-kind="main">Agente principal</button>
+            </div>
+            <div class="check-row">
+              <label class="check"><input type="checkbox" id="f-direct" checked /><span class="box"></span>Direto ao Asafe</label>
+              <label class="check"><input type="checkbox" id="f-server" checked /><span class="box"></span>Gerar servidor</label>
+            </div>
+            <button class="btn primary block" id="f-add"><svg class="ic sm"><use href="#i-plus"/></svg>Adicionar à rede</button>
+          </div>
+
+          <div class="card glass grow" id="inspector">
+            <!-- preenchido via JS -->
+          </div>
+        </aside>
+      </section>
+
+      <!-- ============ SERVIDORES ============ -->
+      <section class="view" id="view-servidores">
+        <div class="page">
+          <div class="page-head">
+            <div>
+              <div class="eyebrow">Servidores gerados</div>
+              <h1>Logins das IA's</h1>
+              <p class="muted">Cada IA da Nathanael Industries entra na rede por um servidor gerado pelo Asafe.</p>
+            </div>
+            <button class="btn primary"><svg class="ic sm"><use href="#i-plus"/></svg>Gerar servidor</button>
+          </div>
+          <div class="kpis" id="srv-kpis"></div>
+          <div class="grid-cards" id="srv-grid"></div>
+        </div>
+      </section>
+
+      <!-- ============ DADOS ============ -->
+      <section class="view" id="view-dados">
+        <div class="page">
+          <div class="page-head">
+            <div>
+              <div class="eyebrow">Armazenamento</div>
+              <h1>Dados do Asafe</h1>
+              <p class="muted">Tudo que passa pelas Linhas Conexionais fica guardado aqui.</p>
+            </div>
+            <div class="search glass-2"><svg class="ic sm muted"><use href="#i-search"/></svg><input placeholder="Buscar coleção…" /></div>
+          </div>
+          <div class="split">
+            <div class="card glass">
+              <div class="card-title">Uso por IA</div>
+              <div id="usage"></div>
+            </div>
+            <div class="card glass">
+              <div class="card-title">Coleções</div>
+              <table class="table" id="collections"></table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ APIs ============ -->
+      <section class="view" id="view-apis">
+        <div class="page">
+          <div class="page-head">
+            <div>
+              <div class="eyebrow">Desenvolvimento</div>
+              <h1>APIs → Gather</h1>
+              <p class="muted">O Asafe desenvolve, testa e entrega cada API para o Gather.</p>
+            </div>
+            <button class="btn primary"><svg class="ic sm"><use href="#i-code"/></svg>Nova API</button>
+          </div>
+          <div class="kanban" id="kanban"></div>
+        </div>
+      </section>
+
+      <!-- ============ OBSERVADOR ============ -->
+      <section class="view" id="view-observador">
+        <div class="page">
+          <div class="page-head">
+            <div>
+              <div class="eyebrow">Observador</div>
+              <h1>Ações entre IA's</h1>
+              <p class="muted">Tudo que uma IA faz dentro de outra, em tempo real.</p>
+            </div>
+            <div class="seg-group inline" id="obs-filter">
+              <button class="seg active" data-f="all">Tudo</button>
+              <button class="seg" data-f="click">Cliques</button>
+              <button class="seg" data-f="type">Escrita</button>
+              <button class="seg" data-f="think">Pensamento</button>
+              <button class="seg" data-f="api">API</button>
+            </div>
+          </div>
+          <div class="card glass feed-card">
+            <div class="feed-head mono">
+              <span>hora</span><span>linha</span><span>ação</span><span>detalhe</span><span>status</span>
+            </div>
+            <div class="feed" id="feed"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ PERMISSÕES ============ -->
+      <section class="view" id="view-permissoes">
+        <div class="page">
+          <div class="page-head">
+            <div>
+              <div class="eyebrow">Controle</div>
+              <h1>Permissões</h1>
+              <p class="muted">Quem pode operar dentro de quem.</p>
+            </div>
+          </div>
+          <div class="split">
+            <div class="card glass">
+              <div class="card-title">Pendentes</div>
+              <div id="perm-pending"></div>
+            </div>
+            <div class="card glass">
+              <div class="card-title">Permissões ativas</div>
+              <div id="perm-active"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div class="toasts" id="toasts"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
