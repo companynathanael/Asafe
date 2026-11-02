@@ -18,7 +18,7 @@ Abra http://127.0.0.1:8000/painel/, clique na pílula **"demonstração · conec
 
 | Aba | O que mostra |
 | --- | --- |
-| **Linhas Conexionais** | Quadro com o núcleo Asafe e as IA's. Uma *linha conexional* permite que uma IA opere **dentro** de outra (clicar, digitar, ler tela, pensar, executar). O painel lateral mostra a interface da IA operada em tempo real. O **Gather** (ciano) aparece conectado ao Asafe; as APIs ficam com ele. |
+| **Linhas Conexionais** | Quadro com o núcleo Asafe e as IA's. Uma *linha conexional* permite que uma IA opere **dentro** de outra (clicar, digitar, ler tela, pensar, executar). O painel lateral mostra a interface da IA operada em tempo real. Os motores aparecem conectados ao Asafe, cada um com seu tema: **Gather** (ciano, APIs), **Fornalha** (laranja, funde e prova) e **Bezalel** (verde, molda as IAs), com a linha de produção Gather → Fornalha → Bezalel. |
 | **Servidores** | Servidores vigiados pelo Asafe: status, métricas, alertas, manutenção, comandos e **Gerar servidor** (cadastrar uma máquina existente ou criar uma nova num provedor). |
 | **Dados** | Espaço usado por IA e backups (criar, baixar, apagar). |
 | **Observador** | Auditoria real: tudo que cada IA fez na API (inclusive o que foi negado). |

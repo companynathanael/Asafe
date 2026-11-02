@@ -13,19 +13,46 @@
 
   /* ---------------- estado ---------------- */
   const NODE_W = 236, NODE_H = 66;
-  const CORES = {
-    red: { w: 190, hh: 164, h: 230, img: "assets/asafe-symbol-256.png", name: "ASAFE", sub: "NÚCLEO · SERVIDORES · DADOS" },
-    cyan: { w: 140, hh: 108, h: 165, img: "assets/gather-symbol.png", name: "GATHER", sub: "ORQUESTRA APIs" },
+  // Motores conectados ao Asafe. Cada um tem tema, logo e textos próprios (mesmo modelo do Gather).
+  const MOTORES = {
+    gather: {
+      nome: "Gather", tema: "cyan", sub: "ORQUESTRA APIs", papel: "Gerencia e orquestra as próprias APIs",
+      img: "assets/gather-symbol.png", logo: "assets/gather-symbol-cyan.png",
+      hex: ["#00c8e0", "#22eaff", "#04222a"],
+    },
+    fornalha: {
+      nome: "Fornalha", tema: "orange", sub: "FUNDE E PROVA", papel: "Funde habilidades, faz a prova de fogo e mede o desempenho",
+      img: "assets/fornalha-symbol.png", logo: "assets/fornalha-symbol-laranja.png",
+      hex: ["#ea580c", "#fb923c", "#2a1306"],
+    },
+    bezalel: {
+      nome: "Bezalel", tema: "green", sub: "MOLDA AS IAs", papel: "Cria as IAs: definição, montagem, versões e aposentadoria",
+      img: "assets/bezalel-symbol.png", logo: "assets/bezalel-symbol-verde.png",
+      hex: ["#16a34a", "#4ade80", "#06220f"],
+    },
   };
+  const CORES = {
+    red: { w: 190, hh: 164, h: 230, img: "assets/asafe-symbol-256.png", name: "ASAFE", sub: "NÚCLEO · SERVIDORES · DADOS", hex: ["#e5162b", "#ff3348", "#2a0a0f"] },
+  };
+  for (const m of Object.values(MOTORES)) {
+    CORES[m.tema] = { w: 140, hh: 108, h: 165, img: m.img, name: m.nome.toUpperCase(), sub: m.sub, hex: m.hex };
+  }
   const coreDim = (n) => CORES[n.theme || "red"];
 
   const state = {
     nodes: [
-      { id: "asafe", type: "core", theme: "red", x: 220, y: 300 },
-      { id: "gather", type: "core", theme: "cyan", name: "Gather", x: 760, y: 330, live: true },
+      { id: "asafe", type: "core", theme: "red", x: 180, y: 300 },
+      { id: "gather", type: "core", theme: "cyan", name: "Gather", x: 760, y: 20, live: true },
+      { id: "fornalha", type: "core", theme: "orange", name: "Fornalha", x: 820, y: 330, live: true },
+      { id: "bezalel", type: "core", theme: "green", name: "Bezalel", x: 760, y: 640, live: true },
     ],
     edges: [
-      { id: "e1", from: "asafe", to: "gather", type: "gather", label: "conexão" },
+      { id: "e1", from: "asafe", to: "gather", type: "motor", theme: "cyan", label: "conexão" },
+      { id: "e2", from: "asafe", to: "fornalha", type: "motor", theme: "orange", label: "conexão" },
+      { id: "e3", from: "asafe", to: "bezalel", type: "motor", theme: "green", label: "conexão" },
+      // linha de produção: Gather (APIs) → Fornalha (funde e prova) → Bezalel (molda a IA)
+      { id: "p1", from: "gather", to: "fornalha", type: "prod" },
+      { id: "p2", from: "fornalha", to: "bezalel", type: "prod" },
     ],
     view: { x: 0, y: 0, z: 1 },
     selected: null,
@@ -43,7 +70,7 @@
       ["carregando armazenamento de dados", 36],
       ["gerando logins das IA's", 55],
       ["abrindo linhas conexionais", 72],
-      ["conectando ao Gather", 88],
+      ["conectando aos motores", 88],
       ["ativando observador", 100],
     ];
     const wait = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -109,8 +136,8 @@
 
   function nodeHTML(n) {
     if (n.type === "core") {
-      const d = coreDim(n), red = (n.theme || "red") === "red";
-      const c1 = red ? "#e5162b" : "#00c8e0", c2 = red ? "#ff3348" : "#22eaff", bg = red ? "#2a0a0f" : "#04222a";
+      const d = coreDim(n);
+      const [c1, c2, bg] = d.hex;
       return `
         <div class="core-ring r2"></div><div class="core-ring"></div>
         <div class="core-hex">
@@ -162,8 +189,8 @@
       const d = pathFor(e);
       const sel = state.selected?.kind === "edge" && state.selected.id === e.id;
       html += `<g class="edge-g" data-id="${e.id}">`;
-      if (e.type === "cx" || e.type === "data" || e.type === "gather") html += `<path class="edge halo ${e.type === "gather" ? "cyan" : ""}" d="${d}"/>`;
-      html += `<path class="edge ${e.type} ${sel ? "sel" : ""}" d="${d}" id="p-${e.id}"/>`;
+      if (e.type === "cx" || e.type === "data" || e.type === "motor") html += `<path class="edge halo ${e.theme || ""}" d="${d}"/>`;
+      html += `<path class="edge ${e.type} ${e.theme || ""} ${sel ? "sel" : ""}" d="${d}" id="p-${e.id}"/>`;
       html += `<path class="edge-hit" d="${d}"/>`;
       html += `</g>`;
     }
@@ -171,7 +198,7 @@
     for (const e of state.edges) {
       const n = e.type === "cx" ? 3 : 2;
       for (let i = 0; i < n; i++) {
-        html += `<circle class="packet ${e.type === "gather" ? "c" : e.type === "cx" || e.type === "data" ? "r" : ""}" r="${e.type === "cx" ? 4 : 3.5}" data-e="${e.id}" data-o="${i / n}"/>`;
+        html += `<circle class="packet ${e.type === "motor" ? e.theme : e.type === "prod" ? "prod" : e.type === "cx" || e.type === "data" ? "r" : ""}" r="${e.type === "cx" ? 4 : 3.5}" data-e="${e.id}" data-o="${i / n}"/>`;
       }
     }
     // rótulos
@@ -187,8 +214,8 @@
         const pt = p.getPointAtLength(len * 0.5);
         const w = e.label.length * 6.6 + 16;
         labels.insertAdjacentHTML("beforeend",
-          `<rect class="edge-label-bg ${e.type === "gather" ? "cyan" : ""}" x="${pt.x - w / 2}" y="${pt.y - 10}" width="${w}" height="20" rx="5"/>
-           <text class="edge-label ${e.type === "gather" ? "cyan" : ""}" x="${pt.x}" y="${pt.y + 3.5}" text-anchor="middle">${e.label}</text>`);
+          `<rect class="edge-label-bg ${e.theme || ""}" x="${pt.x - w / 2}" y="${pt.y - 10}" width="${w}" height="20" rx="5"/>
+           <text class="edge-label ${e.theme || ""}" x="${pt.x}" y="${pt.y + 3.5}" text-anchor="middle">${e.label}</text>`);
       }
     }
     $$(".edge-g", edgesSvg).forEach((g) =>
@@ -332,17 +359,21 @@
       <div><i style="border-color:var(--red)"></i>dados → Asafe</div>
       <div><i style="border-color:rgba(255,255,255,.6)"></i>Asafe → IA</div>
       <div><i style="border-color:var(--cyan);border-top-style:dashed"></i>Asafe ↔ Gather</div>
+      <div><i style="border-color:var(--orange);border-top-style:dashed"></i>Asafe ↔ Fornalha</div>
+      <div><i style="border-color:var(--green);border-top-style:dashed"></i>Asafe ↔ Bezalel</div>
+      <div><i style="border-color:rgba(255,255,255,.35);border-top-style:dotted"></i>linha de produção</div>
       <div><i style="border-color:var(--red-2);border-top-style:dashed"></i>linha conexional (IA opera IA)</div>
     </div>`;
   }
 
-  const LOGOS = { asafe: ["red", "assets/asafe-symbol-red.png"], gather: ["cyan", "assets/gather-symbol-cyan.png"] };
+  const LOGOS = { asafe: ["red", "assets/asafe-symbol-red.png"] };
+  for (const [id, m] of Object.entries(MOTORES)) LOGOS[id] = [m.tema, m.logo];
   function av(n, size = "") {
     const id = n?.id, logo = LOGOS[id];
     if (logo) return `<span class="avatar logo ${logo[0]} ${size}"><img src="${logo[1]}" alt="${n.name || nameOf(id)}" /></span>`;
     return `<span class="avatar ${size} ${avCls(n)}">${initial(n?.name || nameOf(id))}</span>`;
   }
-  function avCls(n) { return n?.theme === "cyan" ? "cyan" : n?.kind === "main" || n?.id === "asafe" ? "red" : ""; }
+  function avCls(n) { return n?.theme && n.theme !== "red" ? n.theme : n?.kind === "main" || n?.id === "asafe" ? "red" : ""; }
   function hops(id) {
     if (id === "asafe") return 0;
     if (state.edges.some((e) => (e.from === id && e.to === "asafe") || (e.to === id && e.from === "asafe"))) return 1;
@@ -385,16 +416,21 @@
         ${legend()}`;
       return;
     }
-    if (id === "gather") {
+    if (MOTORES[id]) {
+      const m = MOTORES[id];
+      const etapa = { gather: "1. APIs", fornalha: "2. funde e prova", bezalel: "3. molda a IA" }[id];
       inspector.innerHTML = `
-        <div class="card-title">Gather <span class="tag cyan solid">Ativo</span></div>
-        <div class="srv-head">${av({ id: "gather", name: "Gather" }, "lg")}<div class="t"><b>Gather</b><span>Gerencia e orquestra as próprias APIs</span></div></div>
+        <div class="card-title">${m.nome} <span class="tag ${m.tema} solid">Ativo</span></div>
+        <div class="srv-head">${av({ id, name: m.nome }, "lg")}<div class="t"><b>${m.nome}</b><span>${m.papel}</span></div></div>
         <div class="label-xs">Rota</div>
-        <div class="route"><span class="chip red"><img class="chip-logo" src="assets/asafe-symbol-red.png" alt="" />Asafe</span>${icon("arrow", "xs muted")}<span class="chip cyan"><img class="chip-logo" src="assets/gather-symbol-cyan.png" alt="" />Gather</span></div>
+        <div class="route"><span class="chip red"><img class="chip-logo" src="assets/asafe-symbol-red.png" alt="" />Asafe</span>${icon("arrow", "xs muted")}<span class="chip ${m.tema}"><img class="chip-logo" src="${m.logo}" alt="" />${m.nome}</span></div>
         <dl class="kv">
-          <dt>Servidor</dt><dd>gather.nathanael.ind ${icon("copy", "xs")}</dd>
+          <dt>Servidor</dt><dd>${id}.nathanael.ind ${icon("copy", "xs")}</dd>
           <dt>Status</dt><dd>conectado ao Asafe</dd>
+          <dt>Produção</dt><dd>${etapa}</dd>
         </dl>
+        <div class="label-xs">Linha de produção</div>
+        <div class="route">${["gather", "fornalha", "bezalel"].map((k) => `<span class="chip ${k === id ? MOTORES[k].tema : ""}">${MOTORES[k].nome}</span>`).join(icon("arrow", "xs muted"))}</div>
         ${legend()}`;
       return;
     }
@@ -416,7 +452,7 @@
       <div class="net-list">
         ${conns.map((e) => {
           const other = e.from === id ? e.to : e.from;
-          const label = { gather: "conectado", data: "envia dados", out: "recebe do Asafe", cx: e.from === id ? "opera dentro" : "é operada por" }[e.type];
+          const label = { motor: "conectado", prod: "linha de produção", data: "envia dados", out: "recebe do Asafe", cx: e.from === id ? "opera dentro" : "é operada por" }[e.type];
           return `<div class="net-item" data-edge="${e.id}">
             ${av(byId(other) || { id: other }, "sm")}
             <span class="ni-name">${nameOf(other)}</span><span class="ni-meta">${label}</span></div>`;
@@ -432,7 +468,7 @@
   }
 
   function renderSimpleEdge(e) {
-    const desc = { gather: "Conexão entre o Asafe e o Gather.", data: "Dados fluindo para o núcleo do Asafe.", out: "O Asafe envia instruções e respostas para a IA." }[e.type];
+    const desc = { motor: `Conexão entre o Asafe e ${nameOf(e.to)}.`, prod: `Linha de produção: ${nameOf(e.from)} entrega para ${nameOf(e.to)}.`, data: "Dados fluindo para o núcleo do Asafe.", out: "O Asafe envia instruções e respostas para a IA." }[e.type];
     inspector.innerHTML = `
       <div class="card-title">Linha <span class="tag dim">${e.type}</span></div>
       <div class="route"><span class="chip ${e.from === "asafe" ? "red" : ""}">${nameOf(e.from)}</span>${icon("arrow", "xs muted")}<span class="chip ${e.to === "asafe" ? "red" : ""}">${nameOf(e.to)}</span></div>
@@ -562,7 +598,7 @@
      SERVIDORES
      ========================================================= */
   const servers = [
-    { id: "gather", name: "Gather", role: "Orquestra as próprias APIs", kind: "aux", theme: "cyan", cpu: 0, mem: 0, up: "agora", status: "Ao vivo" },
+    ...Object.entries(MOTORES).map(([id, m]) => ({ id, name: m.nome, role: m.papel, kind: "aux", theme: m.tema, cpu: 0, mem: 0, up: "agora", status: "Ao vivo" })),
   ];
   const spark = (seed) => {
     let pts = "";
@@ -584,7 +620,7 @@
         <div class="srv-head">
           ${av(s, "lg")}
           <div class="t"><b>${s.name}</b><span>${s.role}</span></div>
-          <span class="tag ${s.status !== "Ao vivo" ? "white" : s.theme === "cyan" ? "cyan" : ""}"><span class="dot ${s.status === "Ao vivo" ? "pulse" : "white"}" style="width:5px;height:5px"></span>${s.status}</span>
+          <span class="tag ${s.status !== "Ao vivo" ? "white" : s.theme && s.theme !== "red" ? s.theme : ""}"><span class="dot ${s.status === "Ao vivo" ? "pulse" : "white"}" style="width:5px;height:5px"></span>${s.status}</span>
         </div>
         <dl class="kv">
           <dt>Host</dt><dd>${s.id}.nathanael.ind ${icon("copy", "xs")}</dd>
