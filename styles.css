@@ -479,3 +479,10 @@ h1 { font-size: 28px; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 
 .col.gather .dot { background: var(--cyan); box-shadow: 0 0 8px var(--cyan); }
 .col .empty { padding: 30px 0; border: 1px dashed var(--line-2); border-radius: 12px; font-size: 12px; }
 .tag.cyan .dot { background: var(--cyan); box-shadow: 0 0 8px var(--cyan); }
+
+/* avatares com logo (Asafe vermelho · Gather ciano) */
+.avatar.logo { padding: 0; background: radial-gradient(circle at 50% 40%, rgba(229, 22, 43, 0.22), #120507 75%); border-color: var(--red-line); box-shadow: 0 0 14px -4px var(--red-glow); }
+.avatar.logo img { width: 66%; height: 66%; object-fit: contain; filter: drop-shadow(0 0 4px rgba(229, 22, 43, 0.6)); }
+.avatar.logo.cyan { background: radial-gradient(circle at 50% 40%, rgba(0, 229, 255, 0.2), #031216 75%); border-color: var(--cyan-line); box-shadow: 0 0 14px -4px var(--cyan-glow); }
+.avatar.logo.cyan img { filter: drop-shadow(0 0 4px rgba(0, 229, 255, 0.6)); }
+.chip-logo { width: 14px; height: 14px; object-fit: contain; }

@@ -337,6 +337,12 @@
     </div>`;
   }
 
+  const LOGOS = { asafe: ["red", "assets/asafe-symbol-red.png"], gather: ["cyan", "assets/gather-symbol-cyan.png"] };
+  function av(n, size = "") {
+    const id = n?.id, logo = LOGOS[id];
+    if (logo) return `<span class="avatar logo ${logo[0]} ${size}"><img src="${logo[1]}" alt="${n.name || nameOf(id)}" /></span>`;
+    return `<span class="avatar ${size} ${avCls(n)}">${initial(n?.name || nameOf(id))}</span>`;
+  }
   function avCls(n) { return n?.theme === "cyan" ? "cyan" : n?.kind === "main" || n?.id === "asafe" ? "red" : ""; }
   function hops(id) {
     if (id === "asafe") return 0;
@@ -352,7 +358,7 @@
       <div class="net-list">
         ${ais.map((n) => `
           <div class="net-item" data-id="${n.id}">
-            <span class="avatar sm ${avCls(n)}">${initial(n.name)}</span>
+            ${av(n, "sm")}
             <span class="ni-name">${n.name}</span>
             <span class="ni-meta"><span class="dot ${n.live ? "" : "off"}"></span>${hops(n.id)} ${hops(n.id) === 1 ? "salto" : "saltos"}</span>
           </div>`).join("")}
@@ -365,7 +371,7 @@
     if (id === "asafe") {
       inspector.innerHTML = `
         <div class="card-title">Núcleo <span class="tag solid">Ativo</span></div>
-        <div class="srv-head"><span class="avatar lg red">A</span><div class="t"><b>Asafe</b><span>Desenvolvedor · Servidores · Dados · APIs</span></div></div>
+        <div class="srv-head">${av({ id: "asafe", name: "Asafe" }, "lg")}<div class="t"><b>Asafe</b><span>Desenvolvedor · Servidores · Dados · APIs</span></div></div>
         <dl class="kv">
           <dt>Servidores</dt><dd>${servers.length} gerado${servers.length === 1 ? "" : "s"}</dd>
           <dt>Linhas</dt><dd>${state.edges.length} ativa${state.edges.length === 1 ? "" : "s"}</dd>
@@ -384,9 +390,9 @@
     if (id === "gather") {
       inspector.innerHTML = `
         <div class="card-title">Gather <span class="tag cyan solid">Ativo</span></div>
-        <div class="srv-head"><span class="avatar lg cyan">G</span><div class="t"><b>Gather</b><span>Recebe as APIs desenvolvidas pelo Asafe</span></div></div>
+        <div class="srv-head">${av({ id: "gather", name: "Gather" }, "lg")}<div class="t"><b>Gather</b><span>Recebe as APIs desenvolvidas pelo Asafe</span></div></div>
         <div class="label-xs">Rota</div>
-        <div class="route"><span class="chip red">Asafe</span>${icon("arrow", "xs muted")}<span class="chip cyan">Gather</span></div>
+        <div class="route"><span class="chip red"><img class="chip-logo" src="assets/asafe-symbol-red.png" alt="" />Asafe</span>${icon("arrow", "xs muted")}<span class="chip cyan"><img class="chip-logo" src="assets/gather-symbol-cyan.png" alt="" />Gather</span></div>
         <dl class="kv">
           <dt>Servidor</dt><dd>gather.nathanael.ind ${icon("copy", "xs")}</dd>
           <dt>APIs</dt><dd>0 recebidas</dd>
@@ -415,7 +421,7 @@
           const other = e.from === id ? e.to : e.from;
           const label = { gather: "recebe APIs", data: "envia dados", out: "recebe do Asafe", api: "recebe APIs", cx: e.from === id ? "opera dentro" : "é operada por" }[e.type];
           return `<div class="net-item" data-edge="${e.id}">
-            <span class="avatar sm ${avCls(byId(other))}">${initial(nameOf(other))}</span>
+            ${av(byId(other) || { id: other }, "sm")}
             <span class="ni-name">${nameOf(other)}</span><span class="ni-meta">${label}</span></div>`;
         }).join("")}
       </div>
@@ -577,7 +583,7 @@
     $("#srv-grid").innerHTML = servers.map((s) => `
       <div class="srv glass">
         <div class="srv-head">
-          <span class="avatar lg ${avCls(s)}">${initial(s.name)}</span>
+          ${av(s, "lg")}
           <div class="t"><b>${s.name}</b><span>${s.role}</span></div>
           <span class="tag ${s.status !== "Ao vivo" ? "white" : s.theme === "cyan" ? "cyan" : ""}"><span class="dot ${s.status === "Ao vivo" ? "pulse" : "white"}" style="width:5px;height:5px"></span>${s.status}</span>
         </div>
@@ -601,7 +607,7 @@
   function renderUsage() {
     const rows = [{ name: "Asafe (núcleo)", id: "asafe" }, ...servers];
     $("#usage").innerHTML = rows.map((n) => `
-      <div class="usage-row"><div class="u-top"><span class="avatar sm ${avCls(n)}">${initial(n.name)}</span><b>${n.name}</b><span>0 B</span></div>
+      <div class="usage-row"><div class="u-top">${av(n, "sm")}<b>${n.name}</b><span>0 B</span></div>
       <div class="bar"><i style="width:0%"></i></div></div>`).join("") +
       `<div class="legend"><div><span class="dot"></span>0 B de 10 GB usados</div></div>`;
   }
@@ -668,7 +674,7 @@
     $$("[data-pp]").forEach((b) => b.addEventListener("click", () => resolvePerm(b.dataset.pp === "ok")));
     $("#perm-active").innerHTML = state.activePerms.map((p, i) => `
       <div class="perm-item">
-        <span class="avatar ${p.who === "Horácio" || p.who === "Asafe" ? "red" : ""}">${initial(p.who)}</span>
+        ${av(state.nodes.find((x) => (x.name || nameOf(x.id)) === p.who) || { name: p.who })}
         <div class="p-main"><b>${p.who} → ${p.target}</b><div><span class="red-t mono">${p.scope}</span> · ${p.until}</div></div>
         <button class="btn ghost sm" data-rm="${i}">Retirar</button>
       </div>`).join("") || `<div class="empty">Nenhuma permissão ativa.</div>`;
