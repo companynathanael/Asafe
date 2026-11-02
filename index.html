@@ -78,16 +78,16 @@
         <button class="tab" data-view="dados"><svg class="ic"><use href="#i-db"/></svg>Dados</button>
         <button class="tab" data-view="apis"><svg class="ic"><use href="#i-code"/></svg>APIs</button>
         <button class="tab" data-view="observador"><svg class="ic"><use href="#i-eye"/></svg>Observador</button>
-        <button class="tab" data-view="permissoes"><svg class="ic"><use href="#i-shield"/></svg>Permissões <span class="badge" id="perm-badge">1</span></button>
+        <button class="tab" data-view="permissoes"><svg class="ic"><use href="#i-shield"/></svg>Permissões <span class="badge hidden" id="perm-badge">0</span></button>
       </nav>
 
       <div class="top-right">
         <div class="stats">
-          <div class="stat"><b id="st-nodes">4</b><span>nós</span></div>
-          <div class="stat"><b id="st-lines">4</b><span>linhas</span></div>
-          <div class="stat"><b id="st-data">2,4 GB</b><span>dados</span></div>
+          <div class="stat"><b id="st-nodes">2</b><span>nós</span></div>
+          <div class="stat"><b id="st-lines">1</b><span>linhas</span></div>
+          <div class="stat"><b id="st-data">0 B</b><span>dados</span></div>
         </div>
-        <div class="live-pill"><span class="dot pulse"></span><span id="live-text">núcleo · 3 ao vivo</span><span class="mono" id="clock">--:--:--</span></div>
+        <div class="live-pill"><span class="dot pulse"></span><span id="live-text">núcleo · 1 ao vivo</span><span class="mono" id="clock">--:--:--</span></div>
         <button class="icon-btn" title="Exportar rede"><svg class="ic"><use href="#i-download"/></svg></button>
         <button class="icon-btn" title="Importar rede"><svg class="ic"><use href="#i-upload"/></svg></button>
       </div>
@@ -119,33 +119,6 @@
             <div id="nodes"></div>
           </div>
 
-          <!-- pedido de permissão -->
-          <div class="perm-pop glass-strong" id="perm-pop">
-            <div class="perm-head">
-              <span class="avatar red sm">H</span>
-              <b>Horácio</b><svg class="ic xs muted"><use href="#i-arrow"/></svg><b>Miquéias</b>
-              <span class="mono muted perm-timer" id="perm-timer">60s</span>
-            </div>
-            <div class="perm-scope">
-              <span class="mono red-t">linha.operar</span>
-              <span class="muted">· ações: clicar, digitar, ler tela, pensar</span>
-            </div>
-            <p class="perm-desc">Horácio quer abrir uma <b>Linha Conexional</b> e operar <b>dentro</b> da interface do Miquéias.</p>
-            <div class="perm-quote mono">pedido do senhor: “@miqueias diga olá”</div>
-            <div class="perm-actions">
-              <div class="select">
-                <select>
-                  <option>Só desta vez</option>
-                  <option>Nesta sessão</option>
-                  <option>Até o Asafe reiniciar</option>
-                  <option>Sempre</option>
-                </select>
-                <svg class="ic xs"><use href="#i-chev"/></svg>
-              </div>
-              <button class="btn ghost-red" data-perm="deny">Recusar</button>
-              <button class="btn primary" data-perm="ok">Aceitar</button>
-            </div>
-          </div>
         </div>
 
         <aside class="side">

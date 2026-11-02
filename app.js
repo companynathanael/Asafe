@@ -13,28 +13,24 @@
 
   /* ---------------- estado ---------------- */
   const NODE_W = 236, NODE_H = 66;
-  const CORE = { w: 130, cy: 58 };
+  const CORES = {
+    red: { w: 190, hh: 164, h: 230, img: "assets/asafe-symbol-256.png", name: "ASAFE", sub: "NÚCLEO · SERVIDORES · APIs" },
+    cyan: { w: 140, hh: 108, h: 165, img: "assets/gather-symbol.png", name: "GATHER", sub: "RECEBE AS APIs" },
+  };
+  const coreDim = (n) => CORES[n.theme || "red"];
 
   const state = {
     nodes: [
-      { id: "asafe", type: "core", x: 330, y: 400 },
-      { id: "horacio", name: "Horácio", role: "Agente principal", kind: "main", x: 150, y: 130, live: true },
-      { id: "gather", name: "Gather", role: "Recebe as APIs do Asafe", kind: "aux", x: 680, y: 230, live: true },
-      { id: "miqueias", name: "Miquéias", role: "IA auxiliar", kind: "aux", x: 640, y: 590, live: true },
+      { id: "asafe", type: "core", theme: "red", x: 220, y: 300 },
+      { id: "gather", type: "core", theme: "cyan", name: "Gather", x: 760, y: 330, live: true },
     ],
     edges: [
-      { id: "e1", from: "horacio", to: "asafe", type: "data" },
-      { id: "e2", from: "asafe", to: "miqueias", type: "out" },
-      { id: "e3", from: "asafe", to: "gather", type: "api", label: "APIs" },
-      { id: "e4", from: "horacio", to: "miqueias", type: "cx", label: "linha conexional" },
+      { id: "e1", from: "asafe", to: "gather", type: "gather", label: "APIs" },
     ],
     view: { x: 0, y: 0, z: 1 },
-    selected: { kind: "edge", id: "e4" },
-    pendingPerm: true,
-    activePerms: [
-      { who: "Horácio", target: "Gather", scope: "api.entregar", until: "Sempre" },
-      { who: "Asafe", target: "Miquéias", scope: "dados.ler", until: "Até reiniciar" },
-    ],
+    selected: null,
+    pendingPerm: false,
+    activePerms: [],
   };
   const byId = (id) => state.nodes.find((n) => n.id === id);
   const nameOf = (id) => (id === "asafe" ? "Asafe" : byId(id)?.name ?? id);
@@ -69,7 +65,7 @@
   tick(); setInterval(tick, 1000);
 
   function updateStats() {
-    const ais = state.nodes.filter((n) => n.type !== "core");
+    const ais = state.nodes.filter((n) => n.id !== "asafe");
     $("#st-nodes").textContent = state.nodes.length;
     $("#st-lines").textContent = state.edges.length;
     $("#live-text").textContent = `núcleo · ${ais.filter((n) => n.live).length} ao vivo`;
@@ -98,7 +94,7 @@
   const board = $("#board"), world = $("#world"), edgesSvg = $("#edges"), nodesEl = $("#nodes");
 
   function center(n) {
-    if (n.type === "core") return { x: n.x + CORE.w / 2, y: n.y + CORE.cy };
+    if (n.type === "core") { const d = coreDim(n); return { x: n.x + d.w / 2, y: n.y + d.hh / 2 }; }
     return { x: n.x + NODE_W / 2, y: n.y + NODE_H / 2 };
   }
   function pathFor(e) {
@@ -114,22 +110,24 @@
 
   function nodeHTML(n) {
     if (n.type === "core") {
+      const d = coreDim(n), red = (n.theme || "red") === "red";
+      const c1 = red ? "#e5162b" : "#00c8e0", c2 = red ? "#ff3348" : "#22eaff", bg = red ? "#2a0a0f" : "#04222a";
       return `
         <div class="core-ring r2"></div><div class="core-ring"></div>
         <div class="core-hex">
           <svg class="hex" viewBox="0 0 104 116">
             <defs>
-              <linearGradient id="hexg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a0a0f"/><stop offset="1" stop-color="#0b0b0d"/></linearGradient>
-              <filter id="hexglow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="6"/></filter>
+              <linearGradient id="hexg-${n.id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${bg}"/><stop offset="1" stop-color="#0b0b0d"/></linearGradient>
+              <filter id="hexglow-${n.id}" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="6"/></filter>
             </defs>
-            <polygon points="52,2 102,30 102,86 52,114 2,86 2,30" fill="none" stroke="#e5162b" stroke-width="3" filter="url(#hexglow)" opacity=".8"/>
-            <polygon class="hex-stroke" points="52,2 102,30 102,86 52,114 2,86 2,30" fill="url(#hexg)" stroke="#ff3348" stroke-width="1.6"/>
+            <polygon points="52,2 102,30 102,86 52,114 2,86 2,30" fill="none" stroke="${c1}" stroke-width="3" filter="url(#hexglow-${n.id})" opacity=".8"/>
+            <polygon class="hex-stroke" points="52,2 102,30 102,86 52,114 2,86 2,30" fill="url(#hexg-${n.id})" stroke="${c2}" stroke-width="1.6"/>
           </svg>
-          <img src="assets/asafe-symbol-256.png" alt="Asafe" />
+          <img src="${d.img}" alt="${d.name}" />
           <span class="port"></span>
         </div>
-        <div class="core-name">ASAFE</div>
-        <div class="core-sub">NÚCLEO · SERVIDORES · APIs</div>`;
+        <div class="core-name">${d.name}</div>
+        <div class="core-sub">${d.sub}</div>`;
     }
     const operated = state.edges.some((e) => e.type === "cx" && e.to === n.id);
     const operating = state.edges.find((e) => e.type === "cx" && e.from === n.id);
@@ -146,7 +144,7 @@
     nodesEl.innerHTML = "";
     for (const n of state.nodes) {
       const el = document.createElement("div");
-      el.className = n.type === "core" ? "core" : `node ${n.kind}`;
+      el.className = n.type === "core" ? `core ${n.theme || "red"}` : `node ${n.kind}`;
       el.dataset.id = n.id;
       el.style.left = n.x + "px";
       el.style.top = n.y + "px";
@@ -165,7 +163,7 @@
       const d = pathFor(e);
       const sel = state.selected?.kind === "edge" && state.selected.id === e.id;
       html += `<g class="edge-g" data-id="${e.id}">`;
-      if (e.type === "cx" || e.type === "data") html += `<path class="edge halo" d="${d}"/>`;
+      if (e.type === "cx" || e.type === "data" || e.type === "gather") html += `<path class="edge halo ${e.type === "gather" ? "cyan" : ""}" d="${d}"/>`;
       html += `<path class="edge ${e.type} ${sel ? "sel" : ""}" d="${d}" id="p-${e.id}"/>`;
       html += `<path class="edge-hit" d="${d}"/>`;
       html += `</g>`;
@@ -174,7 +172,7 @@
     for (const e of state.edges) {
       const n = e.type === "cx" ? 3 : 2;
       for (let i = 0; i < n; i++) {
-        html += `<circle class="packet ${e.type === "cx" || e.type === "data" ? "r" : ""}" r="${e.type === "cx" ? 4 : 3.5}" data-e="${e.id}" data-o="${i / n}"/>`;
+        html += `<circle class="packet ${e.type === "gather" ? "c" : e.type === "cx" || e.type === "data" ? "r" : ""}" r="${e.type === "cx" ? 4 : 3.5}" data-e="${e.id}" data-o="${i / n}"/>`;
       }
     }
     // rótulos
@@ -190,8 +188,8 @@
         const pt = p.getPointAtLength(len * 0.5);
         const w = e.label.length * 6.6 + 16;
         labels.insertAdjacentHTML("beforeend",
-          `<rect class="edge-label-bg" x="${pt.x - w / 2}" y="${pt.y - 10}" width="${w}" height="20" rx="5"/>
-           <text class="edge-label" x="${pt.x}" y="${pt.y + 3.5}" text-anchor="middle">${e.label}</text>`);
+          `<rect class="edge-label-bg ${e.type === "gather" ? "cyan" : ""}" x="${pt.x - w / 2}" y="${pt.y - 10}" width="${w}" height="20" rx="5"/>
+           <text class="edge-label ${e.type === "gather" ? "cyan" : ""}" x="${pt.x}" y="${pt.y + 3.5}" text-anchor="middle">${e.label}</text>`);
       }
     }
     $$(".edge-g", edgesSvg).forEach((g) =>
@@ -230,11 +228,11 @@
     const r = board.getBoundingClientRect();
     let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
     for (const n of state.nodes) {
-      const w = n.type === "core" ? CORE.w : NODE_W, h = n.type === "core" ? 150 : NODE_H;
+      const w = n.type === "core" ? coreDim(n).w : NODE_W, h = n.type === "core" ? coreDim(n).h : NODE_H;
       x0 = Math.min(x0, n.x); y0 = Math.min(y0, n.y); x1 = Math.max(x1, n.x + w); y1 = Math.max(y1, n.y + h);
     }
-    const padX = 90, padY = 110;
-    const z = Math.min(1.25, Math.max(0.4, Math.min((r.width - padX * 2) / (x1 - x0), (r.height - padY * 2) / (y1 - y0))));
+    const padX = 110, padY = 90;
+    const z = Math.min(1.1, Math.max(0.4, Math.min((r.width - padX * 2) / (x1 - x0), (r.height - padY * 2) / (y1 - y0))));
     state.view = { z, x: (r.width - (x1 - x0) * z) / 2 - x0 * z, y: (r.height - (y1 - y0) * z) / 2 - y0 * z - 30 };
     applyView();
   }
@@ -334,11 +332,12 @@
     return `<div class="legend">
       <div><i style="border-color:var(--red)"></i>dados → Asafe</div>
       <div><i style="border-color:rgba(255,255,255,.6)"></i>Asafe → IA</div>
-      <div><i style="border-color:rgba(255,255,255,.45);border-top-style:dotted"></i>API → Gather</div>
+      <div><i style="border-color:var(--cyan);border-top-style:dashed"></i>API → Gather</div>
       <div><i style="border-color:var(--red-2);border-top-style:dashed"></i>linha conexional (IA opera IA)</div>
     </div>`;
   }
 
+  function avCls(n) { return n?.theme === "cyan" ? "cyan" : n?.kind === "main" || n?.id === "asafe" ? "red" : ""; }
   function hops(id) {
     if (id === "asafe") return 0;
     if (state.edges.some((e) => (e.from === id && e.to === "asafe") || (e.to === id && e.from === "asafe"))) return 1;
@@ -346,14 +345,14 @@
   }
 
   function renderNetwork() {
-    const ais = state.nodes.filter((n) => n.type !== "core");
+    const ais = state.nodes.filter((n) => n.id !== "asafe");
     inspector.innerHTML = `
       <div class="card-title">Rede <span class="tag dim">${ais.filter((n) => n.live).length}/${ais.length} online</span></div>
       <p class="hint">Selecione um nó ou linha. Clique duas vezes em uma IA para abrir os dados dela.</p>
       <div class="net-list">
         ${ais.map((n) => `
           <div class="net-item" data-id="${n.id}">
-            <span class="avatar sm ${n.kind === "main" ? "red" : ""}">${initial(n.name)}</span>
+            <span class="avatar sm ${avCls(n)}">${initial(n.name)}</span>
             <span class="ni-name">${n.name}</span>
             <span class="ni-meta"><span class="dot ${n.live ? "" : "off"}"></span>${hops(n.id)} ${hops(n.id) === 1 ? "salto" : "saltos"}</span>
           </div>`).join("")}
@@ -368,10 +367,10 @@
         <div class="card-title">Núcleo <span class="tag solid">Ativo</span></div>
         <div class="srv-head"><span class="avatar lg red">A</span><div class="t"><b>Asafe</b><span>Desenvolvedor · Servidores · Dados · APIs</span></div></div>
         <dl class="kv">
-          <dt>Servidores</dt><dd>${state.nodes.length - 1} gerados</dd>
-          <dt>Linhas</dt><dd>${state.edges.length} ativas</dd>
-          <dt>APIs</dt><dd>3 entregues ao Gather</dd>
-          <dt>Armazenado</dt><dd>2,4 GB</dd>
+          <dt>Servidores</dt><dd>${servers.length} gerado${servers.length === 1 ? "" : "s"}</dd>
+          <dt>Linhas</dt><dd>${state.edges.length} ativa${state.edges.length === 1 ? "" : "s"}</dd>
+          <dt>APIs</dt><dd>0 entregues ao Gather</dd>
+          <dt>Armazenado</dt><dd>0 B</dd>
         </dl>
         <div class="label-xs">Responsabilidades</div>
         <div class="route">
@@ -379,6 +378,20 @@
           <span class="chip">${icon("server", "xs")}Gera servidores</span><span class="chip">${icon("send", "xs")}Entrega APIs</span>
           <span class="chip red">${icon("link", "xs")}Cria linhas</span><span class="chip red">${icon("eye", "xs")}Observa</span>
         </div>
+        ${legend()}`;
+      return;
+    }
+    if (id === "gather") {
+      inspector.innerHTML = `
+        <div class="card-title">Gather <span class="tag cyan solid">Ativo</span></div>
+        <div class="srv-head"><span class="avatar lg cyan">G</span><div class="t"><b>Gather</b><span>Recebe as APIs desenvolvidas pelo Asafe</span></div></div>
+        <div class="label-xs">Rota</div>
+        <div class="route"><span class="chip red">Asafe</span>${icon("arrow", "xs muted")}<span class="chip cyan">Gather</span></div>
+        <dl class="kv">
+          <dt>Servidor</dt><dd>gather.nathanael.ind ${icon("copy", "xs")}</dd>
+          <dt>APIs</dt><dd>0 recebidas</dd>
+          <dt>Status</dt><dd>aguardando APIs</dd>
+        </dl>
         ${legend()}`;
       return;
     }
@@ -400,9 +413,9 @@
       <div class="net-list">
         ${conns.map((e) => {
           const other = e.from === id ? e.to : e.from;
-          const label = { data: "envia dados", out: "recebe do Asafe", api: "recebe APIs", cx: e.from === id ? "opera dentro" : "é operada por" }[e.type];
+          const label = { gather: "recebe APIs", data: "envia dados", out: "recebe do Asafe", api: "recebe APIs", cx: e.from === id ? "opera dentro" : "é operada por" }[e.type];
           return `<div class="net-item" data-edge="${e.id}">
-            <span class="avatar sm ${other === "asafe" || byId(other)?.kind === "main" ? "red" : ""}">${initial(nameOf(other))}</span>
+            <span class="avatar sm ${avCls(byId(other))}">${initial(nameOf(other))}</span>
             <span class="ni-name">${nameOf(other)}</span><span class="ni-meta">${label}</span></div>`;
         }).join("")}
       </div>
@@ -416,7 +429,7 @@
   }
 
   function renderSimpleEdge(e) {
-    const desc = { data: "Dados fluindo para o núcleo do Asafe.", out: "O Asafe envia instruções e respostas para a IA.", api: "APIs desenvolvidas pelo Asafe sendo entregues ao Gather." }[e.type];
+    const desc = { gather: "APIs desenvolvidas pelo Asafe sendo entregues ao Gather.", data: "Dados fluindo para o núcleo do Asafe.", out: "O Asafe envia instruções e respostas para a IA.", api: "APIs desenvolvidas pelo Asafe sendo entregues ao Gather." }[e.type];
     inspector.innerHTML = `
       <div class="card-title">Linha <span class="tag dim">${e.type}</span></div>
       <div class="route"><span class="chip ${e.from === "asafe" ? "red" : ""}">${nameOf(e.from)}</span>${icon("arrow", "xs muted")}<span class="chip ${e.to === "asafe" ? "red" : ""}">${nameOf(e.to)}</span></div>
@@ -513,23 +526,12 @@
   }
 
   /* ---------------- pedido de permissão ---------------- */
-  let permLeft = 60;
-  const permTimer = setInterval(() => {
-    if (!state.pendingPerm) return clearInterval(permTimer);
-    permLeft = Math.max(0, permLeft - 1);
-    $("#perm-timer").textContent = permLeft + "s";
-  }, 1000);
-  setTimeout(() => state.pendingPerm && toast("Horácio pede permissão para operar dentro de Miquéias"), 5200);
-
   function resolvePerm(ok) {
     state.pendingPerm = false;
-    $("#perm-pop").classList.add("hide");
     $("#perm-badge").classList.add("hidden");
-    if (ok) state.activePerms.unshift({ who: "Horácio", target: "Miquéias", scope: "linha.operar", until: $("#perm-pop select").value });
-    toast(ok ? "Permissão concedida · Horácio opera em Miquéias" : "Pedido de Horácio recusado");
+    toast(ok ? "Permissão concedida" : "Pedido recusado");
     renderPerms();
   }
-  $$("[data-perm]").forEach((b) => b.addEventListener("click", () => resolvePerm(b.dataset.perm === "ok")));
 
   /* ---------------- adicionar IA ---------------- */
   let kind = "aux";
@@ -557,29 +559,27 @@
      SERVIDORES
      ========================================================= */
   const servers = [
-    { id: "horacio", name: "Horácio", role: "Agente principal", kind: "main", cpu: 62, mem: 48, up: "14d 06h", status: "Ao vivo" },
-    { id: "miqueias", name: "Miquéias", role: "IA auxiliar", kind: "aux", cpu: 28, mem: 35, up: "9d 21h", status: "Ao vivo" },
-    { id: "gather", name: "Gather", role: "Recebe as APIs do Asafe", kind: "aux", cpu: 41, mem: 57, up: "3d 02h", status: "Ao vivo" },
+    { id: "gather", name: "Gather", role: "Recebe as APIs do Asafe", kind: "aux", theme: "cyan", cpu: 0, mem: 0, up: "agora", status: "Ao vivo" },
   ];
   const spark = (seed) => {
-    let pts = "", v = 14;
-    for (let i = 0; i <= 24; i++) { v = Math.max(3, Math.min(25, v + Math.sin(i * 1.7 + seed) * 5)); pts += `${i * 10},${28 - v} `; }
+    let pts = "";
+    for (let i = 0; i <= 24; i++) pts += `${i * 10},${seed === null ? 26 : 28 - Math.max(3, Math.min(25, 14 + Math.sin(i * 1.7 + seed) * 5))} `;
     return `<svg class="spark" viewBox="0 0 240 28" preserveAspectRatio="none"><polyline points="${pts}" fill="none" stroke="#ff3348" stroke-width="1.6"/><polyline points="0,28 ${pts} 240,28" fill="rgba(229,22,43,.10)" stroke="none"/></svg>`;
   };
   function renderServers() {
     $("#srv-kpis").innerHTML = [
-      ["Servidores", servers.length, "+1 hoje"],
-      ["Logins ativos", servers.filter((s) => s.status === "Ao vivo").length, "100%"],
-      ["Requisições / min", "1.284", "+8%"],
-      ["Latência média", "18 ms", "−3 ms"],
-    ].map(([l, v, d], i) => `<div class="kpi glass"><div class="k-label">${l}</div><div class="k-val">${v}<small>${d}</small></div>${spark(i * 2.3)}</div>`).join("");
+      ["Servidores", servers.length, ""],
+      ["Logins ativos", servers.filter((s) => s.status === "Ao vivo").length, ""],
+      ["Requisições / min", "0", ""],
+      ["Latência média", "—", ""],
+    ].map(([l, v, d]) => `<div class="kpi glass"><div class="k-label">${l}</div><div class="k-val">${v}<small>${d}</small></div>${spark(null)}</div>`).join("");
 
     $("#srv-grid").innerHTML = servers.map((s) => `
       <div class="srv glass">
         <div class="srv-head">
-          <span class="avatar lg ${s.kind === "main" ? "red" : ""}">${initial(s.name)}</span>
+          <span class="avatar lg ${avCls(s)}">${initial(s.name)}</span>
           <div class="t"><b>${s.name}</b><span>${s.role}</span></div>
-          <span class="tag ${s.status === "Ao vivo" ? "" : "white"}"><span class="dot ${s.status === "Ao vivo" ? "pulse" : "white"}" style="width:5px;height:5px"></span>${s.status}</span>
+          <span class="tag ${s.status !== "Ao vivo" ? "white" : s.theme === "cyan" ? "cyan" : ""}"><span class="dot ${s.status === "Ao vivo" ? "pulse" : "white"}" style="width:5px;height:5px"></span>${s.status}</span>
         </div>
         <dl class="kv">
           <dt>Host</dt><dd>${s.id}.nathanael.ind ${icon("copy", "xs")}</dd>
@@ -599,31 +599,24 @@
      DADOS
      ========================================================= */
   function renderUsage() {
-    const rows = [["Asafe (núcleo)", 38, true], ...servers.map((s, i) => [s.name, [24, 17, 13][i] ?? 2, s.kind === "main"])];
-    $("#usage").innerHTML = rows.map(([n, p, red]) => `
-      <div class="usage-row"><div class="u-top"><span class="avatar sm ${red ? "red" : ""}">${initial(n)}</span><b>${n}</b><span>${(p * 0.024).toFixed(2)} GB</span></div>
-      <div class="bar ${red ? "" : "white"}"><i style="width:${p * 2}%"></i></div></div>`).join("") +
-      `<div class="legend"><div><span class="dot"></span>2,4 GB de 10 GB usados</div></div>`;
+    const rows = [{ name: "Asafe (núcleo)", id: "asafe" }, ...servers];
+    $("#usage").innerHTML = rows.map((n) => `
+      <div class="usage-row"><div class="u-top"><span class="avatar sm ${avCls(n)}">${initial(n.name)}</span><b>${n.name}</b><span>0 B</span></div>
+      <div class="bar"><i style="width:0%"></i></div></div>`).join("") +
+      `<div class="legend"><div><span class="dot"></span>0 B de 10 GB usados</div></div>`;
   }
   $("#collections").innerHTML = `
     <tr><th>Coleção</th><th>Dono</th><th>Registros</th><th>Tamanho</th><th>Atualizado</th></tr>
-    ${[
-      ["linhas.eventos", "Asafe", "48.210", "612 MB", "agora"],
-      ["servidores.logins", "Asafe", "3", "4 KB", "há 2 min"],
-      ["horacio.memoria", "Horácio", "12.904", "540 MB", "há 12 s"],
-      ["miqueias.conversas", "Miquéias", "3.118", "402 MB", "há 40 s"],
-      ["gather.apis", "Gather", "27", "88 KB", "há 1 h"],
-      ["observador.capturas", "Asafe", "9.442", "780 MB", "agora"],
-    ].map(([c, o, r, s, u]) => `<tr><td class="mono"><b>${c}</b></td><td>${o}</td><td class="mono">${r}</td><td class="mono">${s}</td><td class="muted">${u}</td></tr>`).join("")}`;
+    <tr><td colspan="5"><div class="empty">Nenhuma coleção ainda.</div></td></tr>`;
 
   /* =========================================================
      APIs → Gather
      ========================================================= */
   const cols = [
-    { t: "Planejada", items: [["POST", "/linhas/abrir", "Abre uma Linha Conexional entre duas IA's.", "Horácio"]] },
-    { t: "Em desenvolvimento", items: [["POST", "/chat/ask", "Envia um pedido e devolve o texto da IA alvo.", "Miquéias", 64], ["GET", "/observador/stream", "Fluxo ao vivo das ações entre IA's.", "Asafe", 38]] },
-    { t: "Testes", items: [["POST", "/servidores/gerar", "Cria login e servidor para uma nova IA.", "Asafe", 90]] },
-    { t: "Entregue ao Gather", gather: true, items: [["GET", "/dados/colecoes", "Lista coleções do armazenamento.", "Gather"], ["POST", "/auth/login", "Login das IA's da Nathanael Industries.", "Gather"], ["GET", "/rede/status", "Estado de nós e linhas.", "Gather"]] },
+    { t: "Planejada", items: [] },
+    { t: "Em desenvolvimento", items: [] },
+    { t: "Testes", items: [] },
+    { t: "Entregue ao Gather", gather: true, items: [] },
   ];
   $("#kanban").innerHTML = cols.map((c) => `
     <div class="col glass ${c.gather ? "gather" : ""}">
@@ -634,7 +627,7 @@
           <div class="api-desc">${d}</div>
           ${prog ? `<div class="bar"><i style="width:${prog}%"></i></div>` : ""}
           <div class="api-foot"><span>${c.gather ? "entregue · v1" : prog ? prog + "%" : "backlog"}</span><span>${c.gather ? "→ " : "p/ "}${who}</span></div>
-        </div>`).join("")}
+        </div>`).join("") || `<div class="empty">Nenhuma API</div>`}
     </div>`).join("");
 
   /* =========================================================
@@ -643,17 +636,7 @@
   const ACTS = {
     click: ["cursor", "clicar"], type: ["keyboard", "digitar"], think: ["brain", "pensar"], api: ["code", "api"], read: ["eye", "ler tela"],
   };
-  const SAMPLES = [
-    ["Horácio", "Miquéias", "click", "botão “Nova conversa”"],
-    ["Horácio", "Miquéias", "type", "“resuma os dados de ontem”"],
-    ["Horácio", "Miquéias", "read", "painel de respostas"],
-    ["Horácio", "Miquéias", "think", "Miquéias raciocinando · 1,8 s"],
-    ["Asafe", "Gather", "api", "POST /auth/login entregue"],
-    ["Horácio", "Gather", "api", "GET /rede/status"],
-    ["Horácio", "Miquéias", "click", "aba “Arquivos”"],
-    ["Horácio", "Miquéias", "think", "planejando próximo passo"],
-    ["Asafe", "Horácio", "read", "captura de tela · 1280×800"],
-  ];
+  const SAMPLES = [];
   let obsFilter = "all";
   function feedRow([a, b, act, det], time) {
     const [ic, label] = ACTS[act];
@@ -665,19 +648,7 @@
       <span><span class="tag ${act === "think" ? "dim" : ""}">${act === "think" ? "observado" : "ok"}</span></span>
     </div>`;
   }
-  (() => {
-    const d = new Date();
-    let html = "";
-    for (let i = 0; i < 14; i++) {
-      const t = new Date(d - i * 7300);
-      html += feedRow(SAMPLES[i % SAMPLES.length], `${pad(t.getHours())}:${pad(t.getMinutes())}:${pad(t.getSeconds())}`);
-    }
-    $("#feed").innerHTML = html;
-  })();
-  setInterval(() => {
-    $("#feed").insertAdjacentHTML("afterbegin", feedRow(SAMPLES[Math.floor(Math.random() * SAMPLES.length)], now()));
-    const f = $("#feed"); while (f.children.length > 60) f.lastElementChild.remove();
-  }, 2600);
+  $("#feed").innerHTML = `<div class="empty">Nenhuma ação entre IA's ainda. Crie uma Linha Conexional para começar a observar.</div>`;
   $$("#obs-filter .seg").forEach((b) => b.addEventListener("click", () => {
     obsFilter = b.dataset.f;
     $$("#obs-filter .seg").forEach((x) => x.classList.toggle("active", x === b));
