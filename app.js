@@ -68,7 +68,6 @@
     const ais = state.nodes.filter((n) => n.id !== "asafe");
     $("#st-nodes").textContent = state.nodes.length;
     $("#st-lines").textContent = state.edges.length;
-    $("#live-text").textContent = `núcleo · ${ais.filter((n) => n.live).length} ao vivo`;
   }
 
   /* ---------------- abas ---------------- */
@@ -571,6 +570,8 @@
     return `<svg class="spark" viewBox="0 0 240 28" preserveAspectRatio="none"><polyline points="${pts}" fill="none" stroke="#ff3348" stroke-width="1.6"/><polyline points="0,28 ${pts} 240,28" fill="rgba(229,22,43,.10)" stroke="none"/></svg>`;
   };
   function renderServers() {
+    if (conn.ok) return renderServidoresReais();
+    $("#srv-alertas").innerHTML = "";
     $("#srv-kpis").innerHTML = [
       ["Servidores", servers.length, ""],
       ["Logins ativos", servers.filter((s) => s.status === "Ao vivo").length, ""],
@@ -594,24 +595,27 @@
         <div class="usage-row"><div class="u-top"><b>Memória</b><span>${s.mem}%</span></div><div class="bar white"><i style="width:${s.mem}%"></i></div></div>
         <div class="srv-foot"><span>uptime ${s.up}</span><span>gerado pelo Asafe</span></div>
       </div>`).join("") + `
-      <button class="srv glass" style="border-style:dashed;align-items:center;justify-content:center;min-height:250px;color:var(--muted)">
-        <span class="avatar lg">${icon("plus")}</span><b style="color:var(--text)">Gerar novo servidor</b><span style="font-size:12px">Login para uma nova IA da Nathanael Industries</span>
+      <button class="srv glass srv-novo" id="srv-novo-demo">
+        <span class="avatar lg">${icon("plus")}</span><b style="color:var(--text)">Gerar novo servidor</b><span style="font-size:12px">Conecte o painel ao Asafe para gerar servidores de verdade</span>
       </button>`;
+    $("#srv-novo-demo").addEventListener("click", () => modalGerarServidor());
   }
 
   /* =========================================================
      DADOS
      ========================================================= */
   function renderUsage() {
+    if (conn.ok) return renderDadosReais();
+    $("#dados-dir-titulo").textContent = "Backups";
+    $("#collections").innerHTML = `
+      <tr><th>Backup</th><th>Tamanho</th><th>Criado em</th><th></th></tr>
+      <tr><td colspan="4"><div class="empty">Conecte o painel ao Asafe para ver e criar backups.</div></td></tr>`;
     const rows = [{ name: "Asafe (núcleo)", id: "asafe" }, ...servers];
     $("#usage").innerHTML = rows.map((n) => `
       <div class="usage-row"><div class="u-top">${av(n, "sm")}<b>${n.name}</b><span>0 B</span></div>
       <div class="bar"><i style="width:0%"></i></div></div>`).join("") +
       `<div class="legend"><div><span class="dot"></span>0 B de 10 GB usados</div></div>`;
   }
-  $("#collections").innerHTML = `
-    <tr><th>Coleção</th><th>Dono</th><th>Registros</th><th>Tamanho</th><th>Atualizado</th></tr>
-    <tr><td colspan="5"><div class="empty">Nenhuma coleção ainda.</div></td></tr>`;
 
   /* =========================================================
      OBSERVADOR
@@ -662,6 +666,470 @@
     }));
   }
 
+  /* =========================================================
+     CONEXÃO COM A API DO ASAFE
+     Sem conexão: o painel mostra a demonstração.
+     Conectado: Servidores, Dados e Observador mostram dados reais.
+     ========================================================= */
+  const conn = { url: "", token: "", ok: false, eu: null };
+  const CHAVE_CONEXAO = "asafe.conexao";
+  const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const NOME_OK = /^[a-z0-9_-]{2,40}$/;
+  const admin = () => conn.eu?.permissoes?.includes("*");
+
+  function lerConexao() {
+    try { return JSON.parse(localStorage.getItem(CHAVE_CONEXAO) || "null"); } catch { return null; }
+  }
+  function salvarConexao(dados) {
+    try { dados ? localStorage.setItem(CHAVE_CONEXAO, JSON.stringify(dados)) : localStorage.removeItem(CHAVE_CONEXAO); } catch { /* sem armazenamento */ }
+  }
+  function urlPadrao() {
+    if (location.protocol.startsWith("http") && location.pathname.startsWith("/painel")) return location.origin;
+    return "http://127.0.0.1:8000";
+  }
+
+  async function api(metodo, caminho, corpo, { blob = false } = {}) {
+    let r;
+    try {
+      r = await fetch(conn.url + caminho, {
+        method: metodo,
+        headers: { Authorization: `Bearer ${conn.token}`, ...(corpo !== undefined ? { "Content-Type": "application/json" } : {}) },
+        body: corpo !== undefined ? JSON.stringify(corpo) : undefined,
+      });
+    } catch {
+      throw new Error("Asafe fora do ar ou endereço errado");
+    }
+    if (blob && r.ok) return r.blob();
+    let dados = null;
+    try { dados = await r.json(); } catch { /* sem corpo */ }
+    if (!r.ok) {
+      const d = dados?.detail;
+      throw new Error(typeof d === "string" ? d : d ? d.map?.((x) => x.msg).join("; ") || JSON.stringify(d) : `Erro ${r.status}`);
+    }
+    return dados;
+  }
+
+  async function conectar(url, token, { silencioso = false } = {}) {
+    conn.url = url.trim().replace(/\/+$/, "");
+    conn.token = token.trim();
+    try {
+      conn.eu = await api("GET", "/eu");
+      conn.ok = true;
+      salvarConexao({ url: conn.url, token: conn.token });
+      atualizarPill();
+      if (!silencioso) toast(`Conectado ao Asafe como ${conn.eu.nome}`);
+      atualizarAtual();
+      return true;
+    } catch (e) {
+      conn.ok = false;
+      atualizarPill();
+      if (!silencioso) throw e;
+      toast(`Não foi possível reconectar ao Asafe: ${e.message}`);
+      return false;
+    }
+  }
+  function desconectar() {
+    Object.assign(conn, { ok: false, eu: null, token: "" });
+    salvarConexao(null);
+    atualizarPill();
+    renderServers(); renderUsage(); renderFeedDemo();
+    toast("Painel desconectado · modo demonstração");
+  }
+
+  function atualizarPill() {
+    const host = conn.url.replace(/^https?:\/\//, "");
+    $("#live-text").textContent = conn.ok ? `conectado · ${host}` : "demonstração · conectar";
+    $("#conn-pill").classList.toggle("off", !conn.ok);
+    $("#srv-sub").textContent = conn.ok
+      ? "Cadastrados e vigiados pelo Asafe: métricas, alertas e comandos."
+      : "Modo demonstração. Conecte o painel ao Asafe para ver e gerar servidores de verdade.";
+    $("#obs-filter").style.display = conn.ok ? "none" : "";
+    $("#obs-leituras-box").hidden = !conn.ok;
+  }
+
+  /* ---------------- janela (modal) ---------------- */
+  function abrirModal(html, aoMontar) {
+    $("#modal-box").innerHTML = html;
+    $("#modal").classList.add("open");
+    $("#modal").setAttribute("aria-hidden", "false");
+    $$("[data-fechar]", $("#modal-box")).forEach((b) => b.addEventListener("click", fecharModal));
+    aoMontar?.($("#modal-box"));
+    $("#modal-box input:not([type=hidden])")?.focus();
+  }
+  function fecharModal() {
+    $("#modal").classList.remove("open");
+    $("#modal").setAttribute("aria-hidden", "true");
+  }
+  $("#modal").addEventListener("click", (e) => e.target.id === "modal" && fecharModal());
+  document.addEventListener("keydown", (e) => e.key === "Escape" && fecharModal());
+
+  const cabecalho = (titulo, sub = "") => `
+    <div class="modal-head"><div><b>${titulo}</b>${sub ? `<span>${sub}</span>` : ""}</div>
+      <button class="icon-btn" data-fechar title="Fechar">${icon("x")}</button></div>`;
+  const erroBox = `<div class="modal-erro" id="m-erro" hidden></div>`;
+  const mostrarErro = (box, msg) => { const e = $("#m-erro", box); e.textContent = msg; e.hidden = !msg; };
+  function ocupado(botao, sim) { botao.disabled = sim; botao.classList.toggle("carregando", sim); }
+  function copiavel(rotulo, texto) {
+    return `<div class="copia"><span class="label-xs">${rotulo}</span>
+      <div class="copia-linha"><code>${esc(texto)}</code><button class="btn ghost sm" data-copiar="${esc(texto)}">${icon("copy", "xs")}Copiar</button></div></div>`;
+  }
+  function ligarCopiar(box) {
+    $$("[data-copiar]", box).forEach((b) => b.addEventListener("click", async () => {
+      try { await navigator.clipboard.writeText(b.dataset.copiar); toast("Copiado"); }
+      catch { toast("Não deu para copiar automaticamente; selecione o texto"); }
+    }));
+  }
+
+  function modalConexao(motivo = "") {
+    const salvo = lerConexao();
+    abrirModal(`
+      ${cabecalho("Conectar ao Asafe", motivo || "O painel passa a mostrar os dados reais da API.")}
+      <label class="field"><span>Endereço da API</span><input id="m-url" value="${esc(conn.url || salvo?.url || urlPadrao())}" placeholder="http://127.0.0.1:8000" /></label>
+      <label class="field"><span>Token</span><input id="m-token" type="password" value="${esc(conn.token || salvo?.token || "")}" placeholder="token do Sr. Nathanael (ASAFE_ADMIN_TOKEN)" autocomplete="off" /></label>
+      <p class="hint">O token fica salvo só neste navegador. Para gerar e remover máquinas use o token do Sr. Nathanael.</p>
+      ${erroBox}
+      <div class="modal-acoes">
+        ${conn.ok ? `<button class="btn ghost-red" id="m-sair">Desconectar</button>` : `<button class="btn ghost" data-fechar>Cancelar</button>`}
+        <button class="btn primary" id="m-ok">${icon("link", "sm")}Conectar</button>
+      </div>`, (box) => {
+      const ok = $("#m-ok", box);
+      const ir = async () => {
+        ocupado(ok, true); mostrarErro(box, "");
+        try { await conectar($("#m-url", box).value, $("#m-token", box).value); fecharModal(); }
+        catch (e) { mostrarErro(box, e.message); }
+        finally { ocupado(ok, false); }
+      };
+      ok.addEventListener("click", ir);
+      $("#m-token", box).addEventListener("keydown", (e) => e.key === "Enter" && ir());
+      $("#m-sair", box)?.addEventListener("click", () => { desconectar(); fecharModal(); });
+    });
+  }
+  $("#conn-pill").addEventListener("click", () => modalConexao());
+
+  /* ---------------- formatação ---------------- */
+  function bytes(n) {
+    if (n == null) return "—";
+    const u = ["B", "KB", "MB", "GB", "TB"]; let i = 0;
+    while (n >= 1024 && i < u.length - 1) { n /= 1024; i++; }
+    return `${n.toLocaleString("pt-BR", { maximumFractionDigits: i ? 1 : 0 })} ${u[i]}`;
+  }
+  function dataSqlite(s) { return s ? new Date(s.replace(" ", "T") + (s.endsWith("Z") ? "" : "Z")) : null; }
+  function haQuanto(seg) {
+    if (seg == null) return "nunca";
+    if (seg < 60) return `há ${Math.round(seg)} s`;
+    if (seg < 3600) return `há ${Math.round(seg / 60)} min`;
+    if (seg < 86400) return `há ${Math.round(seg / 3600)} h`;
+    return `há ${Math.round(seg / 86400)} d`;
+  }
+  const hora = (d) => d ? `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}` : "--:--:--";
+  const STATUS = {
+    online: ["Ao vivo", ""], offline: ["Offline", "white"], manutencao: ["Manutenção", "dim"], criando: ["Criando", "cyan"],
+  };
+  const NOMES_PROVEDOR = { local: "local (teste)", oracle: "Oracle Cloud" };
+
+  /* =========================================================
+     SERVIDORES (reais)
+     ========================================================= */
+  async function renderServidoresReais() {
+    let lista, alertas;
+    try {
+      [lista, alertas] = await Promise.all([api("GET", "/servidores"), api("GET", "/alertas")]);
+    } catch (e) {
+      $("#srv-kpis").innerHTML = "";
+      $("#srv-alertas").innerHTML = "";
+      $("#srv-grid").innerHTML = `<div class="empty card glass">Não foi possível carregar os servidores: ${esc(e.message)}</div>`;
+      return;
+    }
+    const conta = (st) => lista.filter((s) => s.status === st).length;
+    $("#srv-kpis").innerHTML = [
+      ["Servidores", lista.length, ""],
+      ["Online", conta("online"), ""],
+      ["Offline", conta("offline"), conta("offline") ? "atenção" : ""],
+      ["Alertas abertos", alertas.length, ""],
+    ].map(([l, v, d]) => `<div class="kpi glass"><div class="k-label">${l}</div><div class="k-val">${v}<small>${d}</small></div></div>`).join("");
+
+    $("#srv-alertas").innerHTML = alertas.length ? `
+      <div class="card glass alertas">
+        <div class="card-title">Alertas abertos <span class="tag solid">${alertas.length}</span></div>
+        ${alertas.map((a) => `
+          <div class="alerta">
+            <span class="tag">${esc(a.tipo)}</span>
+            <span class="a-msg">${esc(a.mensagem)}</span>
+            <time class="mono muted">${hora(dataSqlite(a.criado_em))}</time>
+            <button class="btn ghost sm" data-resolver="${a.id}">Resolver</button>
+          </div>`).join("")}
+      </div>` : "";
+    $$("[data-resolver]").forEach((b) => b.addEventListener("click", async () => {
+      try { await api("POST", `/alertas/${b.dataset.resolver}/resolver`); renderServidoresReais(); }
+      catch (e) { toast(e.message); }
+    }));
+
+    const barra = (rot, v, branca) => `
+      <div class="usage-row"><div class="u-top"><b>${rot}</b><span>${v == null ? "—" : Math.round(v) + "%"}</span></div>
+      <div class="bar ${branca ? "white" : ""}"><i style="width:${v ?? 0}%"></i></div></div>`;
+
+    $("#srv-grid").innerHTML = lista.map((s) => {
+      const [rot, cls] = STATUS[s.status] || [s.status, "dim"];
+      return `
+      <div class="srv glass srv-${s.status}">
+        <div class="srv-head">
+          <span class="avatar lg ${s.status === "online" ? "red" : ""}">${icon("server")}</span>
+          <div class="t"><b>${esc(s.nome)}</b><span>${esc(s.endereco)}</span></div>
+          <span class="tag ${cls}"><span class="dot ${s.status === "online" ? "pulse" : "white"}" style="width:5px;height:5px"></span>${rot}</span>
+        </div>
+        <dl class="kv">
+          <dt>Último sinal</dt><dd>${haQuanto(s.segundos_sem_sinal)}</dd>
+          <dt>Intervalo</dt><dd>${s.intervalo} s</dd>
+          <dt>Origem</dt><dd>${s.provedor ? esc(NOMES_PROVEDOR[s.provedor] || s.provedor) : "cadastrado à mão"}</dd>
+        </dl>
+        ${barra("CPU", s.metricas.cpu)}${barra("Memória", s.metricas.memoria, true)}${barra("Disco", s.metricas.disco, true)}
+        <div class="srv-acoes">
+          <button class="btn ghost sm" data-manut="${esc(s.nome)}" data-v="${s.manutencao ? 0 : 1}">${icon("pause", "xs")}${s.manutencao ? "Sair da manutenção" : "Manutenção"}</button>
+          <button class="btn ghost sm" data-cmd="${esc(s.nome)}">${icon("play", "xs")}Comando</button>
+          <button class="btn ghost-red sm" data-rem="${esc(s.nome)}" data-prov="${esc(s.provedor || "")}">${icon("x", "xs")}Remover</button>
+        </div>
+      </div>`;
+    }).join("") + `
+      <button class="srv glass srv-novo" id="srv-novo">
+        <span class="avatar lg">${icon("plus")}</span><b>Gerar novo servidor</b>
+        <span>Cadastrar uma máquina ou criar uma nova</span>
+      </button>`;
+
+    $("#srv-novo").addEventListener("click", () => modalGerarServidor());
+    $$("[data-manut]").forEach((b) => b.addEventListener("click", async () => {
+      try {
+        await api("PATCH", `/servidores/${b.dataset.manut}`, { manutencao: b.dataset.v === "1" });
+        toast(b.dataset.v === "1" ? `${b.dataset.manut} em manutenção (alertas silenciados)` : `${b.dataset.manut} saiu da manutenção`);
+        renderServidoresReais();
+      } catch (e) { toast(e.message); }
+    }));
+    $$("[data-cmd]").forEach((b) => b.addEventListener("click", () => modalComando(b.dataset.cmd)));
+    $$("[data-rem]").forEach((b) => b.addEventListener("click", () => modalRemover(b.dataset.rem, b.dataset.prov)));
+  }
+
+  function modalGerarServidor() {
+    if (!conn.ok) return modalConexao("Para gerar servidores de verdade, conecte o painel à API do Asafe.");
+    abrirModal(`
+      ${cabecalho("Gerar servidor", "O servidor passa a ser vigiado pelo Asafe: métricas, alertas e comandos.")}
+      <div class="seg-group" id="m-modo">
+        <button class="seg active" data-modo="cadastrar">Já tenho a máquina</button>
+        <button class="seg" data-modo="criar">Criar máquina nova</button>
+      </div>
+      <div class="form-row">
+        <label class="field"><span>Nome</span><input id="m-nome" placeholder="ex.: srv-01" maxlength="40" /></label>
+        <label class="field"><span>Intervalo do sinal (s)</span><input id="m-int" type="number" min="5" max="3600" value="30" /></label>
+      </div>
+      <label class="field" id="m-end-box"><span>Endereço da máquina</span><input id="m-end" placeholder="ex.: 10.0.0.5" /></label>
+      <label class="field" id="m-prov-box" hidden><span>Onde criar</span>
+        <div class="select"><select id="m-prov"><option>carregando…</option></select>${icon("chev", "xs")}</div></label>
+      <p class="hint" id="m-dica">Você recebe um comando pronto. Cole-o na máquina e ela começa a mandar sinal para o Asafe.</p>
+      ${erroBox}
+      <div class="modal-acoes"><button class="btn ghost" data-fechar>Cancelar</button>
+        <button class="btn primary" id="m-ok">${icon("plus", "sm")}Gerar servidor</button></div>`, async (box) => {
+      let modo = "cadastrar";
+      $$("#m-modo .seg", box).forEach((b) => b.addEventListener("click", () => {
+        modo = b.dataset.modo;
+        $$("#m-modo .seg", box).forEach((x) => x.classList.toggle("active", x === b));
+        $("#m-end-box", box).hidden = modo !== "cadastrar";
+        $("#m-prov-box", box).hidden = modo !== "criar";
+        $("#m-dica", box).textContent = modo === "cadastrar"
+          ? "Você recebe um comando pronto. Cole-o na máquina e ela começa a mandar sinal para o Asafe."
+          : "O Asafe cria a máquina, que liga o sentinela sozinha e aparece aqui. Só o token do Sr. Nathanael pode criar máquinas.";
+      }));
+      try {
+        const provs = await api("GET", "/provedores");
+        $("#m-prov", box).innerHTML = provs.map((p) =>
+          `<option value="${esc(p.nome)}" ${p.configurado ? "" : "disabled"}>${esc(p.descricao)}${p.configurado ? "" : ` · ${esc(p.motivo)}`}</option>`).join("");
+        const primeiro = provs.find((p) => p.configurado);
+        if (primeiro) $("#m-prov", box).value = primeiro.nome;
+      } catch (e) { $("#m-prov", box).innerHTML = `<option disabled>${esc(e.message)}</option>`; }
+
+      const ok = $("#m-ok", box);
+      ok.addEventListener("click", async () => {
+        const nome = $("#m-nome", box).value.trim().toLowerCase();
+        const intervalo = Number($("#m-int", box).value) || 30;
+        if (!NOME_OK.test(nome)) return mostrarErro(box, "Nome: 2 a 40 caracteres, só letras minúsculas, números, - e _.");
+        mostrarErro(box, ""); ocupado(ok, true);
+        try {
+          if (modo === "cadastrar") {
+            const endereco = $("#m-end", box).value.trim() || "a definir";
+            const r = await api("POST", "/servidores?gerar_token_sinal=true", { nome, endereco, intervalo });
+            mostrarResultadoCadastro(r);
+          } else {
+            const provedor = $("#m-prov", box).value;
+            const r = await api("POST", "/servidores/criar", { nome, provedor, intervalo });
+            mostrarResultadoCriacao(r);
+          }
+          renderServidoresReais();
+        } catch (e) { mostrarErro(box, e.message); }
+        finally { ocupado(ok, false); }
+      });
+    });
+  }
+
+  function mostrarResultadoCadastro(r) {
+    abrirModal(`
+      ${cabecalho(`Servidor ${esc(r.nome)} gerado`, "Agora rode o sentinela nessa máquina.")}
+      <div class="passo"><span class="num">1</span><p>Na máquina <b>${esc(r.nome)}</b>, abra o terminal e cole este comando (precisa de Python 3):</p></div>
+      ${copiavel("Comando do sentinela", r.comando_sentinela)}
+      <div class="passo"><span class="num">2</span><p>Em até ${r.intervalo} segundos o servidor aparece como <b>Ao vivo</b> no painel.</p></div>
+      ${copiavel("Token do servidor (só manda sinal)", r.token)}
+      <p class="hint aviso">Guarde o token: ele não será mostrado de novo. Se perder, remova e gere o servidor outra vez.</p>
+      <div class="modal-acoes"><button class="btn primary" data-fechar>Pronto</button></div>`, ligarCopiar);
+  }
+
+  function mostrarResultadoCriacao(r) {
+    abrirModal(`
+      ${cabecalho(`Máquina ${esc(r.nome)} criada`, esc(NOMES_PROVEDOR[r.provedor] || r.provedor))}
+      <dl class="kv"><dt>Id</dt><dd>${esc(r.maquina?.id || r.maquina_id)}</dd><dt>Estado</dt><dd>${esc(r.maquina?.estado || "criando")}</dd></dl>
+      <p class="hint">A máquina está ligando. Quando o sentinela mandar o primeiro sinal, ela passa de <b>Criando</b> para <b>Ao vivo</b>.
+      ${r.provedor === "oracle" ? "Na Oracle isso costuma levar de 2 a 5 minutos." : ""}</p>
+      <div class="modal-acoes"><button class="btn primary" data-fechar>Pronto</button></div>`);
+  }
+
+  function modalComando(nome) {
+    const cmds = [["reiniciar", "Reiniciar"], ["parar", "Parar"], ["atualizar", "Atualizar"], ["limpar_cache", "Limpar cache"], ["coletar_logs", "Coletar logs"]];
+    abrirModal(`
+      ${cabecalho(`Comando para ${esc(nome)}`, "Entregue no próximo sinal. O sentinela só executa o que o dono da máquina configurou.")}
+      <div class="cmd-grid">${cmds.map(([c, r]) => `<button class="btn ghost" data-c="${c}">${r}</button>`).join("")}</div>
+      <div class="label-xs">Últimos comandos</div><div id="m-hist" class="mini-log"><div class="muted">carregando…</div></div>
+      ${erroBox}
+      <div class="modal-acoes"><button class="btn ghost" data-fechar>Fechar</button></div>`, async (box) => {
+      const hist = async () => {
+        try {
+          const h = await api("GET", `/servidores/${nome}/comandos`);
+          $("#m-hist", box).innerHTML = h.slice(0, 6).map((c) =>
+            `<div><time>${hora(dataSqlite(c.criado_em))}</time><b>${esc(c.comando)}</b><span>${esc(c.estado)}${c.resultado ? " · " + esc(c.resultado.slice(0, 60)) : ""}</span></div>`).join("")
+            || `<div class="muted">Nenhum comando ainda.</div>`;
+        } catch (e) { $("#m-hist", box).innerHTML = `<div class="muted">${esc(e.message)}</div>`; }
+      };
+      hist();
+      $$("[data-c]", box).forEach((b) => b.addEventListener("click", async () => {
+        ocupado(b, true);
+        try { await api("POST", `/servidores/${nome}/comandos`, { comando: b.dataset.c }); toast(`Comando ${b.dataset.c} enviado para ${nome}`); hist(); }
+        catch (e) { mostrarErro(box, e.message); }
+        finally { ocupado(b, false); }
+      }));
+    });
+  }
+
+  function modalRemover(nome, provedor) {
+    abrirModal(`
+      ${cabecalho(`Remover ${esc(nome)}?`, "O Asafe para de vigiar este servidor e o token dele deixa de funcionar.")}
+      ${provedor ? `<label class="check"><input type="checkbox" id="m-destruir" checked /><span class="box"></span>Destruir também a máquina (${esc(NOMES_PROVEDOR[provedor] || provedor)})</label>` : ""}
+      ${erroBox}
+      <div class="modal-acoes"><button class="btn ghost" data-fechar>Cancelar</button>
+        <button class="btn primary" id="m-ok">${icon("x", "sm")}Remover</button></div>`, (box) => {
+      const ok = $("#m-ok", box);
+      ok.addEventListener("click", async () => {
+        ocupado(ok, true);
+        const destruir = $("#m-destruir", box)?.checked ? "?destruir_maquina=true" : "";
+        try {
+          const r = await api("DELETE", `/servidores/${nome}${destruir}`);
+          toast(`${nome} removido${r.maquina_destruida ? " · máquina destruída" : ""}`);
+          fecharModal(); renderServidoresReais();
+        } catch (e) { mostrarErro(box, e.message); }
+        finally { ocupado(ok, false); }
+      });
+    });
+  }
+
+  $("#btn-gerar-srv").addEventListener("click", () => modalGerarServidor());
+
+  /* =========================================================
+     DADOS (reais)
+     ========================================================= */
+  async function renderDadosReais() {
+    try {
+      const usos = admin() ? await api("GET", "/armazenamento/uso/todos") : [await api("GET", "/armazenamento/uso")];
+      $("#usage").innerHTML = usos.map((u) => {
+        const pct = u.cota_bytes ? Math.min(100, (100 * u.total_bytes) / u.cota_bytes) : 0;
+        return `<div class="usage-row"><div class="u-top">${av(byId(u.agente) || { id: u.agente, name: u.agente }, "sm")}<b>${esc(u.agente)}</b>
+          <span>${bytes(u.total_bytes)} de ${bytes(u.cota_bytes)}</span></div>
+          <div class="bar"><i style="width:${pct}%"></i></div>
+          <div class="u-sub mono">${u.arquivos.quantidade} arquivo(s) · ${u.dados.quantidade} dado(s)</div></div>`;
+      }).join("") || `<div class="empty">Nenhuma IA registrada ainda.</div>`;
+    } catch (e) { $("#usage").innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
+
+    if (!admin()) {
+      $("#collections").innerHTML = `<tr><td><div class="empty">Backups: só com o token do Sr. Nathanael.</div></td></tr>`;
+      return;
+    }
+    try {
+      const b = await api("GET", "/backups");
+      $("#dados-dir-titulo").innerHTML = `Backups <span class="tag dim">${b.automatico_a_cada_horas ? `automático a cada ${b.automatico_a_cada_horas} h · guarda ${b.manter}` : "automático desligado"}</span>`;
+      $("#collections").innerHTML = `<tr><th>Backup</th><th>Tamanho</th><th>Criado em</th><th></th></tr>` +
+        (b.backups.map((x) => `<tr><td class="mono"><b>${esc(x.nome)}</b></td><td class="mono">${bytes(x.tamanho)}</td>
+          <td class="muted">${esc(x.criado_em.replace("T", " "))}</td>
+          <td class="acoes-td"><button class="btn ghost sm" data-baixar="${esc(x.nome)}">${icon("download", "xs")}Baixar</button>
+          <button class="btn ghost-red sm" data-apagar-bkp="${esc(x.nome)}">${icon("x", "xs")}</button></td></tr>`).join("")
+          || `<tr><td colspan="4"><div class="empty">Nenhum backup ainda. Clique em “Criar backup”.</div></td></tr>`);
+      $$("[data-baixar]").forEach((bt) => bt.addEventListener("click", async () => {
+        try {
+          const blob = await api("GET", `/backups/${bt.dataset.baixar}`, undefined, { blob: true });
+          const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(blob), download: bt.dataset.baixar });
+          a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+        } catch (e) { toast(e.message); }
+      }));
+      $$("[data-apagar-bkp]").forEach((bt) => bt.addEventListener("click", async () => {
+        if (!confirm(`Apagar o backup ${bt.dataset.apagarBkp}?`)) return;
+        try { await api("DELETE", `/backups/${bt.dataset.apagarBkp}`); renderDadosReais(); } catch (e) { toast(e.message); }
+      }));
+    } catch (e) { $("#collections").innerHTML = `<tr><td><div class="empty">${esc(e.message)}</div></td></tr>`; }
+  }
+  $("#btn-backup").addEventListener("click", async (ev) => {
+    if (!conn.ok) return modalConexao("Para criar backups, conecte o painel à API do Asafe.");
+    const b = ev.currentTarget; ocupado(b, true);
+    try { const r = await api("POST", "/backups"); toast(`Backup criado: ${r.nome}`); renderDadosReais(); }
+    catch (e) { toast(e.message); }
+    finally { ocupado(b, false); }
+  });
+
+  /* =========================================================
+     OBSERVADOR (auditoria real)
+     ========================================================= */
+  async function renderObservadorReal() {
+    try {
+      const leituras = $("#obs-leituras").checked;
+      // as leituras do próprio painel (GET a cada 5 s) escondem o que importa; ficam ocultas por padrão
+      const log = (await api("GET", "/auditoria?limite=400"))
+        .filter((l) => leituras || l.acao !== "GET" || l.status >= 400).slice(0, 80);
+      $("#feed").innerHTML = log.map((l) => {
+        const negado = l.status === 401 || l.status === 403;
+        const st = negado ? ["negado", "white"] : l.status >= 400 ? [`erro ${l.status}`, "dim"] : ["ok", ""];
+        return `<div class="feed-row">
+          <time>${hora(dataSqlite(l.criado_em))}</time>
+          <span class="lane">${esc(l.agente)}</span>
+          <span class="act">${icon(l.acao === "GET" ? "eye" : "send", "sm")}${esc(l.acao)}</span>
+          <span class="det mono">${esc(l.alvo)}</span>
+          <span><span class="tag ${st[1]}">${st[0]}</span></span></div>`;
+      }).join("") || `<div class="empty">Nenhuma ação registrada ainda.</div>`;
+    } catch (e) { $("#feed").innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
+  }
+  $("#obs-leituras").addEventListener("change", () => conn.ok && renderObservadorReal());
+  function renderFeedDemo() {
+    $("#feed").innerHTML = `<div class="empty">Nenhuma ação entre IA's ainda. Conecte o painel ao Asafe para ver a auditoria real.</div>`;
+  }
+
+  /* ---------------- atualização ---------------- */
+  function viewAtual() { return $(".tab.active")?.dataset.view; }
+  function atualizarAtual() {
+    if (!conn.ok) return;
+    const v = viewAtual();
+    if (v === "servidores") renderServidoresReais();
+    else if (v === "dados") renderDadosReais();
+    else if (v === "observador") renderObservadorReal();
+  }
+  $$(".tab").forEach((t) => t.addEventListener("click", () => setTimeout(atualizarAtual)));
+  setInterval(() => { if (document.visibilityState === "visible" && !$("#modal").classList.contains("open")) atualizarAtual(); }, 5000);
+
+  // reconecta sozinho se havia uma conexão salva
+  (() => {
+    const salvo = lerConexao();
+    if (salvo?.url && salvo?.token) conectar(salvo.url, salvo.token, { silencioso: true });
+    else if (location.pathname.startsWith("/painel")) conn.url = location.origin;
+  })();
+
   /* ---------------- inicialização ---------------- */
   renderNodes();
   renderEdges();
@@ -670,6 +1138,7 @@
   renderUsage();
   renderPerms();
   updateStats();
+  atualizarPill();
   requestAnimationFrame(fit);
   window.addEventListener("resize", () => $("#view-linhas").classList.contains("active") && fit());
 })();

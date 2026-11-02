@@ -86,7 +86,7 @@
           <div class="stat"><b id="st-lines">1</b><span>linhas</span></div>
           <div class="stat"><b id="st-data">0 B</b><span>dados</span></div>
         </div>
-        <div class="live-pill"><span class="dot pulse"></span><span id="live-text">núcleo · 1 ao vivo</span><span class="mono" id="clock">--:--:--</span></div>
+        <button class="live-pill" id="conn-pill" title="Conexão com a API do Asafe"><span class="dot pulse" id="conn-dot"></span><span id="live-text">demonstração · conectar</span><span class="mono" id="clock">--:--:--</span></button>
         <button class="icon-btn" title="Exportar rede"><svg class="ic"><use href="#i-download"/></svg></button>
         <button class="icon-btn" title="Importar rede"><svg class="ic"><use href="#i-upload"/></svg></button>
       </div>
@@ -149,13 +149,14 @@
         <div class="page">
           <div class="page-head">
             <div>
-              <div class="eyebrow">Servidores gerados</div>
-              <h1>Logins das IA's</h1>
-              <p class="muted">Cada IA da Nathanael Industries entra na rede por um servidor gerado pelo Asafe.</p>
+              <div class="eyebrow">Servidores</div>
+              <h1>Servidores do Asafe</h1>
+              <p class="muted" id="srv-sub">Modo demonstração. Conecte o painel ao Asafe para ver e gerar servidores de verdade.</p>
             </div>
-            <button class="btn primary"><svg class="ic sm"><use href="#i-plus"/></svg>Gerar servidor</button>
+            <button class="btn primary" id="btn-gerar-srv"><svg class="ic sm"><use href="#i-plus"/></svg>Gerar servidor</button>
           </div>
           <div class="kpis" id="srv-kpis"></div>
+          <div id="srv-alertas"></div>
           <div class="grid-cards" id="srv-grid"></div>
         </div>
       </section>
@@ -167,9 +168,9 @@
             <div>
               <div class="eyebrow">Armazenamento</div>
               <h1>Dados do Asafe</h1>
-              <p class="muted">Tudo que passa pelas Linhas Conexionais fica guardado aqui.</p>
+              <p class="muted">Espaço de cada IA (dados e arquivos) e backups do Asafe.</p>
             </div>
-            <div class="search glass-2"><svg class="ic sm muted"><use href="#i-search"/></svg><input placeholder="Buscar coleção…" /></div>
+            <button class="btn primary" id="btn-backup"><svg class="ic sm"><use href="#i-download"/></svg>Criar backup</button>
           </div>
           <div class="split">
             <div class="card glass">
@@ -177,7 +178,7 @@
               <div id="usage"></div>
             </div>
             <div class="card glass">
-              <div class="card-title">Coleções</div>
+              <div class="card-title" id="dados-dir-titulo">Backups</div>
               <table class="table" id="collections"></table>
             </div>
           </div>
@@ -193,6 +194,7 @@
               <h1>Ações entre IA's</h1>
               <p class="muted">Tudo que uma IA faz dentro de outra, em tempo real.</p>
             </div>
+            <label class="check" id="obs-leituras-box" hidden><input type="checkbox" id="obs-leituras" /><span class="box"></span>Mostrar leituras (GET)</label>
             <div class="seg-group inline" id="obs-filter">
               <button class="seg active" data-f="all">Tudo</button>
               <button class="seg" data-f="click">Cliques</button>
@@ -236,6 +238,11 @@
   </div>
 
   <div class="toasts" id="toasts"></div>
+
+  <!-- janela (modal) -->
+  <div class="modal-bg" id="modal" aria-hidden="true">
+    <div class="modal glass-strong" role="dialog" aria-modal="true" id="modal-box"></div>
+  </div>
 
   <script src="app.js"></script>
 </body>
