@@ -768,7 +768,7 @@
     Object.assign(conn, { ok: false, eu: null, token: "" });
     salvarConexao(null);
     atualizarPill();
-    renderServers(); renderUsage(); renderFeedDemo();
+    renderServers(); renderUsage(); renderFeedDemo(); renderEnergiaAtual();
     toast("Painel desconectado · modo demonstração");
   }
 
@@ -1147,16 +1147,146 @@
     $("#feed").innerHTML = `<div class="empty">Nenhuma ação entre IA's ainda. Conecte o painel ao Asafe para ver a auditoria real.</div>`;
   }
 
+  /* =========================================================
+     ENERGIA (eletronanologia)
+     Sem conexão: simulador local com as mesmas regras do Asafe.
+     Conectado: estado real de /energia (caixas guardadas no banco, fontes físicas, eventos).
+     ========================================================= */
+  const NIVEL_INFO = {
+    normal: ["Normal", "", "Na rede elétrica. Caixas cheias ou recarregando."],
+    bateria: ["Bateria", "solid", "A luz caiu. O Asafe está funcionando pelas caixas de energia."],
+    aviso: ["Aviso", "orange", "Energia abaixo de 25%. Prepare-se para o desligamento."],
+    critico: ["Crítico", "solid", "Energia crítica: dados salvos, IAs em modo protegido (sem gravações)."],
+    desligado: ["Desligado", "white", "Caixas esgotadas. Sistemas desligados até a luz voltar."],
+  };
+  const demoEnergia = (() => {
+    const meta = 48, consumo = 60, n = 4, porCaixa = (consumo * meta) / n;
+    const st = {
+      caixas: Array.from({ length: n }, (_, i) => ({ nome: `caixa-${i + 1}`, cap: porCaixa, carga: porCaixa })),
+      naRede: true, semLuz: 0, nivelAnt: "normal", eventos: [],
+    };
+    const total = () => st.caixas.reduce((a, c) => a + c.carga, 0);
+    const pct = () => Math.round((1000 * total()) / (porCaixa * n)) / 10;
+    const nivel = () => (st.naRede ? "normal" : total() <= 0 ? "desligado" : pct() <= 10 ? "critico" : pct() <= 25 ? "aviso" : "bateria");
+    const MSG = {
+      bateria: "⚡ A luz caiu. Asafe e IAs funcionando pelas caixas de energia.",
+      aviso: "🟠 Energia de reserva abaixo de 25%.",
+      critico: "🔴 Energia crítica. Salvando dados e desligando com segurança.",
+      desligado: "⛔ Caixas de energia esgotadas.",
+      normal: "✅ A luz voltou. Caixas recarregando.",
+    };
+    const ev = (tipo, nv, mensagem) => st.eventos.unshift({
+      tipo, nivel: nv, mensagem, origem: "simulacao", criado_em: new Date().toISOString().slice(0, 19).replace("T", " "),
+    });
+    function passo(h) {
+      if (st.naRede) {
+        let e = 300 * h;
+        for (const c of st.caixas) { const v = Math.min(e, c.cap - c.carga); c.carga += v; e -= v; }
+      } else {
+        st.semLuz += h;
+        let f = consumo * h;
+        for (const c of st.caixas) { const v = Math.min(f, c.carga); c.carga -= v; f -= v; }
+      }
+      const nv = nivel();
+      if (nv !== st.nivelAnt) {
+        st.nivelAnt = nv;
+        ev("nivel", nv, MSG[nv]);
+        if (nv === "critico") {
+          ev("backup", "critico", "💾 Backup de emergência criado (demonstração).");
+          ev("desligamento", "critico", "🛑 Desligamento seguro: IAs em modo protegido.");
+        }
+      }
+    }
+    const avancar = (h) => { while (h > 1e-9) { const p = Math.min(h, 0.5); passo(p); h -= p; } };
+    return {
+      estado: () => ({
+        na_rede_eletrica: st.naRede, nivel: nivel(), carga_pct: pct(),
+        autonomia_horas: Math.round((10 * total()) / consumo) / 10, meta_horas: meta,
+        horas_sem_luz: st.semLuz, consumo_w: consumo, modo_protegido: ["critico", "desligado"].includes(nivel()),
+        caixas: st.caixas.map((c) => ({ nome: c.nome, capacidade_wh: c.cap, carga_pct: Math.round((1000 * c.carga) / c.cap) / 10 })),
+        fontes: [], ultimos_eventos: st.eventos.slice(0, 10),
+      }),
+      queda: () => { if (st.naRede) { st.naRede = false; st.semLuz = 0; ev("queda", null, "Queda de luz detectada (simulacao)."); } avancar(0.0001); },
+      retorno: () => { if (!st.naRede) { st.naRede = true; ev("retorno", null, "A luz voltou (simulacao)."); } avancar(0.0001); },
+      avancar,
+    };
+  })();
+
+  function renderEnergia(e) {
+    const [rot, cls, txt] = NIVEL_INFO[e.nivel] || [e.nivel, "dim", ""];
+    $("#en-sub").textContent = conn.ok
+      ? "Estado real das caixas de energia do Asafe, guardado no banco e descarregando em tempo real quando a luz cai."
+      : "Modo demonstração: simule uma queda de luz. Conecte o painel ao Asafe para ver a energia real.";
+    const ban = $("#en-banner");
+    ban.hidden = e.nivel === "normal";
+    ban.className = `en-banner nivel-${e.nivel}`;
+    ban.innerHTML = `${icon(e.nivel === "desligado" ? "x" : "bolt")}<div><b>${rot}</b><span>${txt}</span></div>${e.modo_protegido ? `<span class="tag solid">modo protegido</span>` : ""}`;
+
+    const horas = (h) => (h >= 1 ? `${h.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} h` : `${Math.round(h * 60)} min`);
+    $("#en-kpis").innerHTML = [
+      ["Nível", `<span class="tag ${cls}">${rot}</span>`, ""],
+      ["Carga total", `${e.carga_pct.toLocaleString("pt-BR")}%`, ""],
+      ["Autonomia", horas(e.autonomia_horas), `meta ${e.meta_horas} h`],
+      [e.na_rede_eletrica ? "Rede elétrica" : "Sem luz há", e.na_rede_eletrica ? "ligada" : horas(e.horas_sem_luz), `${e.consumo_w} W`],
+    ].map(([l, v, d]) => `<div class="kpi glass"><div class="k-label">${l}</div><div class="k-val">${v}<small>${d}</small></div></div>`).join("");
+
+    const ativa = e.na_rede_eletrica ? -1 : e.caixas.findIndex((c) => c.carga_pct > 0);
+    $("#en-caixas").innerHTML = e.caixas.map((c, i) => {
+      const estado = i === ativa ? "em uso" : c.carga_pct <= 0 ? "vazia" : e.na_rede_eletrica && c.carga_pct < 100 ? "recarregando" : "pronta";
+      return `<div class="caixa glass ${i === ativa ? "ativa" : ""} ${c.carga_pct <= 0 ? "vazia" : ""}">
+        <div class="caixa-top"><b>${esc(c.nome)}</b><span class="tag ${i === ativa ? "solid" : "dim"}">${estado}</span></div>
+        <div class="bateria"><i style="height:${c.carga_pct}%"></i><span>${Math.round(c.carga_pct)}%</span></div>
+        <div class="caixa-rodape mono">${Math.round(c.capacidade_wh)} Wh · ${horas((c.capacidade_wh * c.carga_pct) / 100 / e.consumo_w)}</div>
+      </div>`;
+    }).join("");
+
+    $("#en-fontes-n").textContent = e.fontes.length;
+    $("#en-fontes").innerHTML = e.fontes.length
+      ? e.fontes.map((f) => {
+        const [r, c] = NIVEL_INFO[f.nivel] || [f.nivel, "dim"];
+        const det = (f.na_rede ? "na rede elétrica" : "na bateria")
+          + (f.bateria_pct != null ? ` · ${Math.round(f.bateria_pct)}%` : "")
+          + (f.autonomia_min != null ? ` · ${Math.round(f.autonomia_min)} min` : "");
+        return `<div class="perm-item"><span class="avatar">${icon("battery")}</span>
+          <div class="p-main"><b>${esc(f.servidor)}</b><div>${det}</div></div><span class="tag ${c}">${r}</span></div>`;
+      }).join("")
+      : `<div class="empty">Nenhuma fonte física ainda. Um nobreak informa a energia real pelo sinal do servidor (campo <span class="mono">info</span>: na_rede_eletrica, bateria_pct, autonomia_min).</div>`;
+
+    $("#en-log").innerHTML = e.ultimos_eventos.map((ev) =>
+      `<div><time>${hora(dataSqlite(ev.criado_em))}</time><b>${esc(ev.tipo)}</b><span>${esc(ev.mensagem)}</span></div>`).join("")
+      || `<div class="muted">Nenhum evento ainda.</div>`;
+
+    $("#en-retorno").disabled = e.na_rede_eletrica;
+    $("#en-queda").disabled = !e.na_rede_eletrica;
+  }
+
+  async function renderEnergiaAtual() {
+    if (!conn.ok) return renderEnergia(demoEnergia.estado());
+    try { renderEnergia(await api("GET", "/energia")); }
+    catch (err) { $("#en-caixas").innerHTML = `<div class="empty card glass">Não foi possível carregar a energia: ${esc(err.message)}</div>`; }
+  }
+  async function acaoEnergia(botao, demo, caminho) {
+    if (!conn.ok) { demo(); return renderEnergia(demoEnergia.estado()); }
+    ocupado(botao, true);
+    try { renderEnergia(await api("POST", caminho)); } catch (err) { toast(err.message); }
+    finally { ocupado(botao, false); }
+  }
+  $("#en-queda").addEventListener("click", (ev) => acaoEnergia(ev.currentTarget, demoEnergia.queda, "/energia/queda"));
+  $("#en-retorno").addEventListener("click", (ev) => acaoEnergia(ev.currentTarget, demoEnergia.retorno, "/energia/retorno"));
+  $("#en-avancar").addEventListener("click", (ev) => acaoEnergia(ev.currentTarget, () => demoEnergia.avancar(6), "/energia/avancar?horas=6"));
+  renderEnergia(demoEnergia.estado());
+
   /* ---------------- atualização ---------------- */
   function viewAtual() { return $(".tab.active")?.dataset.view; }
   function atualizarAtual() {
     if (!conn.ok) return;
     const v = viewAtual();
+    if (v === "energia") return renderEnergiaAtual();
     if (v === "servidores") renderServidoresReais();
     else if (v === "dados") renderDadosReais();
     else if (v === "observador") renderObservadorReal();
   }
-  $$(".tab").forEach((t) => t.addEventListener("click", () => setTimeout(atualizarAtual)));
+  $$(".tab").forEach((t) => t.addEventListener("click", () => setTimeout(() => (t.dataset.view === "energia" && !conn.ok ? renderEnergiaAtual() : atualizarAtual()))));
   setInterval(() => { if (document.visibilityState === "visible" && !$("#modal").classList.contains("open")) atualizarAtual(); }, 5000);
 
   // reconecta sozinho se havia uma conexão salva

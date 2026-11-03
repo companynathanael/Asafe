@@ -39,6 +39,8 @@
       <symbol id="i-dots" viewBox="0 0 24 24"><path d="M5 12h.01M12 12h.01M19 12h.01"/></symbol>
       <symbol id="i-chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></symbol>
       <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+      <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></symbol>
+      <symbol id="i-battery" viewBox="0 0 24 24"><rect x="2" y="7" width="17" height="10" rx="2"/><path d="M22 11v2M6 10v4M10 10v4"/></symbol>
     </defs>
   </svg>
 
@@ -75,6 +77,7 @@
       <nav class="tabs" role="tablist">
         <button class="tab active" data-view="linhas"><svg class="ic"><use href="#i-link"/></svg>Linhas Conexionais</button>
         <button class="tab" data-view="servidores"><svg class="ic"><use href="#i-server"/></svg>Servidores</button>
+        <button class="tab" data-view="energia"><svg class="ic"><use href="#i-bolt"/></svg>Energia</button>
         <button class="tab" data-view="dados"><svg class="ic"><use href="#i-db"/></svg>Dados</button>
         <button class="tab" data-view="observador"><svg class="ic"><use href="#i-eye"/></svg>Observador</button>
         <button class="tab" data-view="permissoes"><svg class="ic"><use href="#i-shield"/></svg>Permissões <span class="badge hidden" id="perm-badge">0</span></button>
@@ -158,6 +161,37 @@
           <div class="kpis" id="srv-kpis"></div>
           <div id="srv-alertas"></div>
           <div class="grid-cards" id="srv-grid"></div>
+        </div>
+      </section>
+
+      <!-- ============ ENERGIA (eletronanologia) ============ -->
+      <section class="view" id="view-energia">
+        <div class="page">
+          <div class="page-head">
+            <div>
+              <div class="eyebrow">Eletronanologia</div>
+              <h1>Energia do Asafe</h1>
+              <p class="muted" id="en-sub">Caixas de energia que mantêm o Asafe (e as IAs, através dele) funcionando quando a luz cai. Meta: 48 h.</p>
+            </div>
+            <div class="en-acoes">
+              <button class="btn ghost" id="en-queda"><svg class="ic sm"><use href="#i-bolt"/></svg>Simular queda</button>
+              <button class="btn ghost" id="en-avancar"><svg class="ic sm"><use href="#i-play"/></svg>Avançar 6 h</button>
+              <button class="btn primary" id="en-retorno"><svg class="ic sm"><use href="#i-plus"/></svg>Luz voltou</button>
+            </div>
+          </div>
+          <div class="en-banner" id="en-banner" hidden></div>
+          <div class="kpis" id="en-kpis"></div>
+          <div class="en-caixas" id="en-caixas"></div>
+          <div class="split">
+            <div class="card glass">
+              <div class="card-title">Fontes físicas <span class="tag dim" id="en-fontes-n">0</span></div>
+              <div id="en-fontes"></div>
+            </div>
+            <div class="card glass">
+              <div class="card-title">Histórico de energia</div>
+              <div class="mini-log en-log" id="en-log"></div>
+            </div>
+          </div>
         </div>
       </section>
 
