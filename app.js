@@ -444,6 +444,16 @@
     $$(".node, .core", nodesEl).forEach((el) =>
       el.classList.toggle("selected", state.selected?.kind === "node" && state.selected.id === el.dataset.id));
   }
+  function heroNucleo(logo, tema, pct, valor, rotulo) {
+    return `<div class="nucleo-hero tema-${tema}">
+      <svg class="nh-aneis" viewBox="0 0 200 200" aria-hidden="true">
+        <circle class="nh-a1" cx="100" cy="100" r="92"/><circle class="nh-a2" cx="100" cy="100" r="78"/>
+        <circle class="nh-carga" cx="100" cy="100" r="66" style="stroke-dasharray:${(2 * Math.PI * 66 * pct) / 100} 999"/>
+      </svg>
+      <img class="nh-logo" src="${logo}" alt="" />
+      <div class="nh-energia"><b>${valor}</b><span>${rotulo}</span></div>
+    </div>`;
+  }
   const gaveta = $(".gaveta");
   function abrirGaveta() { gaveta.classList.add("aberta"); board.classList.add("com-gaveta"); }
   function fecharGaveta() { gaveta.classList.remove("aberta"); board.classList.remove("com-gaveta"); }
@@ -538,14 +548,7 @@
     if (id === "asafe") {
       const motoresOn = state.nodes.filter((n) => n.id !== "asafe" && n.live).length;
       inspector.innerHTML = `
-        <div class="nucleo-hero">
-          <svg class="nh-aneis" viewBox="0 0 200 200" aria-hidden="true">
-            <circle class="nh-a1" cx="100" cy="100" r="92"/><circle class="nh-a2" cx="100" cy="100" r="78"/>
-            <circle class="nh-carga" cx="100" cy="100" r="66" style="stroke-dasharray:${(2 * Math.PI * 66 * reator.pct) / 100} 999"/>
-          </svg>
-          <img class="nh-logo" src="assets/asafe-symbol-red.png" alt="" />
-          <div class="nh-energia"><b>${Math.round(reator.pct)}%</b><span>energia</span></div>
-        </div>
+        ${heroNucleo("assets/asafe-symbol-red.png", "red", reator.pct, Math.round(reator.pct) + "%", "energia")}
         <div class="card-title">Núcleo Asafe <span class="tag solid">Ativo</span></div>
         <div class="nh-stats">
           <div><b>${motoresOn}</b><span>motores online</span></div>
@@ -571,6 +574,7 @@
       const m = MOTORES[id];
       const etapa = { gather: "1. APIs", fornalha: "2. funde e prova", bezalel: "3. molda a IA" }[id];
       inspector.innerHTML = `
+        ${heroNucleo(m.logo, m.tema, 100, "Ativo", "conectado ao Asafe")}
         <div class="card-title">${m.nome} <span class="tag ${m.tema} solid">Ativo</span></div>
         <div class="srv-head">${av({ id, name: m.nome }, "lg")}<div class="t"><b>${m.nome}</b><span>${m.papel}</span></div></div>
         <div class="label-xs">Rota</div>

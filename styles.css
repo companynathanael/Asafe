@@ -1287,3 +1287,60 @@ body.menu-recolhido .sb-foot .live-pill .dot { width: 9px; height: 9px; }
   .gaveta { background: linear-gradient(165deg, rgba(26, 26, 32, 0.95), rgba(10, 10, 13, 0.96)); z-index: 9; bottom: 10px; }
 }
 .telemetria, .board-tools, .arena-acoes, .arena-topo .board-mode { background: linear-gradient(180deg, rgba(28, 28, 34, 0.86), rgba(14, 14, 18, 0.88)); }
+
+/* =========================================================================
+   AJUSTES v3 · rodada 4 (pedidos do Sr. Nathanael)
+   ========================================================================= */
+/* 1) a arena volta a mostrar a colmeia animada (o vidro novo tinha coberto o fundo) */
+#view-linhas .board.glass {
+  background: rgba(5, 5, 7, 0.22);
+  backdrop-filter: none; -webkit-backdrop-filter: none;
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+/* 2) menu: logo centralizada no topo, sem bolinhas e sem cartão do usuário */
+.sb-brand { justify-content: center; height: 64px; padding: 6px 0 10px; border-bottom: 1px solid rgba(255, 255, 255, 0.08); margin-bottom: 4px; }
+.sb-brand .brand-symbol { height: 34px; }
+.sb-brand .brand-word { height: 19px; }
+body.menu-recolhido .sb-brand .brand-word { display: none; }
+body.menu-recolhido .sb-brand .brand-symbol { height: 30px; }
+
+/* 3) gaveta dos núcleos em vidro de verdade (sem cinza) */
+.gaveta {
+  background: linear-gradient(165deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.025) 40%, rgba(229, 22, 43, 0.06));
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28), inset 0 0 40px -20px rgba(255, 255, 255, 0.25), 0 40px 90px -30px rgba(0, 0, 0, 0.8), 0 0 70px -30px rgba(229, 22, 43, 0.55);
+  backdrop-filter: blur(28px) saturate(180%) brightness(0.9); -webkit-backdrop-filter: blur(28px) saturate(180%) brightness(0.9);
+}
+.gaveta > .card {
+  background: linear-gradient(170deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.01));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), inset 0 0 0 1px rgba(255, 255, 255, 0.07);
+}
+.nh-stats div, .gaveta .chip { background: rgba(255, 255, 255, 0.05); }
+
+/* 4) a animação da logo vale para todos os núcleos, na cor de cada um */
+.nucleo-hero { --t: #ff3149; }
+.nucleo-hero.tema-cyan { --t: #22eaff; }
+.nucleo-hero.tema-orange { --t: #f97316; }
+.nucleo-hero.tema-green { --t: #22c55e; }
+.nucleo-hero .nh-a1 { stroke: color-mix(in srgb, var(--t) 40%, transparent); }
+.nucleo-hero .nh-carga { stroke: var(--t); filter: drop-shadow(0 0 8px var(--t)); }
+.nucleo-hero .nh-logo { filter: drop-shadow(0 0 18px color-mix(in srgb, var(--t) 80%, transparent)); animation-name: nh-pulso-t; }
+@keyframes nh-pulso-t { 50% { transform: scale(1.06); filter: drop-shadow(0 0 30px var(--t)); } }
+.nucleo-hero::before {
+  content: ""; position: absolute; width: 150px; height: 150px; border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--t) 22%, transparent), transparent 70%);
+}
+@media (max-width: 1000px) {
+  .sb-brand { height: 46px; padding: 0; border-bottom: 0; margin: 0; justify-content: flex-start; }
+  .gaveta { background: linear-gradient(165deg, rgba(30, 30, 36, 0.9), rgba(12, 12, 16, 0.94)); }
+}
+/* a animação de entrada do quadro desligava o desfoque da gaveta: na arena ele entra só com opacidade */
+#view-linhas.view.active > .board { animation: arena-entra 420ms ease both; }
+@keyframes arena-entra { from { opacity: 0; } to { opacity: 1; } }
+.gaveta {
+  background:
+    linear-gradient(165deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0) 38%),
+    linear-gradient(180deg, rgba(22, 10, 13, 0.66), rgba(10, 8, 10, 0.74));
+}
