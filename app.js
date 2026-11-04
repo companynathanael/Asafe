@@ -84,6 +84,7 @@
     status.textContent = "asafe online";
     await wait(1000);
     splash.classList.add("done");
+    document.body.classList.remove("carregando");  // o painel surge enquanto a splash some
     setTimeout(() => splash.remove(), 800);
   })();
 
@@ -98,9 +99,28 @@
   }
 
   /* ---------------- abas ---------------- */
+  // indicador que desliza até a aba ativa (uma peça só, em vez de cada aba trocar de fundo)
+  const tabInd = document.createElement("span");
+  tabInd.className = "tab-ind";
+  $(".tabs").prepend(tabInd);
+  function moverIndicador(instantaneo = false) {
+    const ativa = $(".tab.active");
+    if (!ativa) return;
+    if (instantaneo) tabInd.style.transition = "none";
+    tabInd.style.width = ativa.offsetWidth + "px";
+    tabInd.style.transform = `translateX(${ativa.offsetLeft}px)`;
+    if (instantaneo) { void tabInd.offsetWidth; tabInd.style.transition = ""; }
+  }
+  addEventListener("resize", () => moverIndicador(true));
+  if (document.fonts) document.fonts.ready.then(() => moverIndicador(true));
+  requestAnimationFrame(() => moverIndicador(true));
+
   function showView(v) {
     $$(".tab").forEach((t) => t.classList.toggle("active", t.dataset.view === v));
     $$(".view").forEach((s) => s.classList.toggle("active", s.id === `view-${v}`));
+    moverIndicador();
+    const aba = $(`.tab[data-view="${v}"]`);
+    if (aba && matchMedia("(max-width: 1000px)").matches) aba.scrollIntoView({ inline: "center", block: "nearest", behavior: "smooth" });
     if (v === "linhas") requestAnimationFrame(renderEdges);
   }
   $$(".tab").forEach((t) => t.addEventListener("click", () => showView(t.dataset.view)));
@@ -613,7 +633,7 @@
       ["Logins ativos", servers.filter((s) => s.status === "Ao vivo").length, ""],
       ["Requisições / min", "0", ""],
       ["Latência média", "—", ""],
-    ].map(([l, v, d]) => `<div class="kpi glass"><div class="k-label">${l}</div><div class="k-val">${v}<small>${d}</small></div>${spark(null)}</div>`).join("");
+    ].map(([l, v, d]) => `<div class="kpi glass"><div class="k-label">${l}</div><div class="k-val">${v}<small>${d}</small></div></div>`).join("");
 
     $("#srv-grid").innerHTML = servers.map((s) => `
       <div class="srv glass">
@@ -1213,6 +1233,7 @@
   })();
 
   function renderEnergia(e) {
+    if (window.AsafeFundo) window.AsafeFundo.nivel(e.nivel);  // o wallpaper acompanha a energia
     const [rot, cls, txt] = NIVEL_INFO[e.nivel] || [e.nivel, "dim", ""];
     $("#en-sub").textContent = conn.ok
       ? "Estado real das caixas de energia do Asafe, guardado no banco e descarregando em tempo real quando a luz cai."

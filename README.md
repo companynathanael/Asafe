@@ -39,4 +39,5 @@ Depois abra http://localhost:8080 (ou abra `index.html` direto no navegador).
 - `index.html` — estrutura
 - `styles.css` — tema preto & vermelho
 - `app.js` — interações do quadro (arrastar, zoom, seleção) e simulações
+- `fundo.js` — wallpaper "colmeia de circuitos": pulsos de energia correndo pelas arestas de uma colmeia hexagonal, lente que acende a colmeia em volta do cursor e reação ao nível de energia (normal, bateria, aviso, crítico, desligado)
 - `assets/` — logo do Asafe (símbolo, wordmark, favicon)
