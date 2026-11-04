@@ -120,6 +120,8 @@
             <button class="seg">Conectar</button>
           </div>
 
+          <div class="telemetria glass-2" id="telemetria" aria-live="polite"></div>
+
           <div class="world" id="world">
             <svg class="edges" id="edges" width="1" height="1"></svg>
             <div id="nodes"></div>
@@ -128,8 +130,12 @@
         </div>
 
         <aside class="side">
-          <div class="card glass">
-            <div class="card-title">Adicionar IA</div>
+          <div class="card glass grow" id="inspector">
+            <!-- preenchido via JS -->
+          </div>
+
+          <details class="card glass add-ia">
+            <summary class="card-title"><span>Adicionar IA</span><svg class="ic sm"><use href="#i-plus"/></svg></summary>
             <div class="form-row">
               <label class="field"><span>Nome</span><input id="f-name" placeholder="ex.: Miquéias" /></label>
               <label class="field"><span>Função</span><input id="f-role" placeholder="ex.: Análise de dados" /></label>
@@ -143,11 +149,7 @@
               <label class="check"><input type="checkbox" id="f-server" checked /><span class="box"></span>Gerar servidor</label>
             </div>
             <button class="btn primary block" id="f-add"><svg class="ic sm"><use href="#i-plus"/></svg>Adicionar à rede</button>
-          </div>
-
-          <div class="card glass grow" id="inspector">
-            <!-- preenchido via JS -->
-          </div>
+          </details>
         </aside>
       </section>
 

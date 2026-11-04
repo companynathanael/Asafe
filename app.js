@@ -39,20 +39,30 @@
   }
   const coreDim = (n) => CORES[n.theme || "red"];
 
+  // núcleo orbital: o Asafe no centro, os motores numa órbita em volta dele
+  const NUCLEO = { x: 600, y: 420 }, ORBITA = 300;
+  function noCentro(cx, cy, w, hh) { return { x: cx - w / 2, y: cy - hh / 2 }; }
+  function naOrbita(graus) {
+    const a = (graus * Math.PI) / 180;
+    return noCentro(NUCLEO.x + ORBITA * Math.cos(a), NUCLEO.y + ORBITA * Math.sin(a), 140, 108);
+  }
+  // estado do reator (anel de energia em volta do Asafe), alimentado pela eletronanologia
+  const reator = { pct: 100, nivel: "normal", caixas: [100, 100, 100, 100], autonomia: 48 };
+
   const state = {
     nodes: [
-      { id: "asafe", type: "core", theme: "red", x: 180, y: 300 },
-      { id: "gather", type: "core", theme: "cyan", name: "Gather", x: 760, y: 20, live: true },
-      { id: "fornalha", type: "core", theme: "orange", name: "Fornalha", x: 820, y: 330, live: true },
-      { id: "bezalel", type: "core", theme: "green", name: "Bezalel", x: 760, y: 640, live: true },
+      { id: "asafe", type: "core", theme: "red", ...noCentro(NUCLEO.x, NUCLEO.y, 190, 164) },
+      { id: "gather", type: "core", theme: "cyan", name: "Gather", ...naOrbita(-90), live: true },
+      { id: "fornalha", type: "core", theme: "orange", name: "Fornalha", ...naOrbita(30), live: true },
+      { id: "bezalel", type: "core", theme: "green", name: "Bezalel", ...naOrbita(150), live: true },
     ],
     edges: [
-      { id: "e1", from: "asafe", to: "gather", type: "motor", theme: "cyan", label: "conexão" },
-      { id: "e2", from: "asafe", to: "fornalha", type: "motor", theme: "orange", label: "conexão" },
-      { id: "e3", from: "asafe", to: "bezalel", type: "motor", theme: "green", label: "conexão" },
-      // linha de produção: Gather (APIs) → Fornalha (funde e prova) → Bezalel (molda a IA)
-      { id: "p1", from: "gather", to: "fornalha", type: "prod" },
-      { id: "p2", from: "fornalha", to: "bezalel", type: "prod" },
+      { id: "e1", from: "asafe", to: "gather", type: "motor", theme: "cyan", raio: true },
+      { id: "e2", from: "asafe", to: "fornalha", type: "motor", theme: "orange", raio: true },
+      { id: "e3", from: "asafe", to: "bezalel", type: "motor", theme: "green", raio: true },
+      // linha de produção corre pela própria órbita: Gather (APIs) → Fornalha (funde e prova) → Bezalel (molda a IA)
+      { id: "p1", from: "gather", to: "fornalha", type: "prod", arco: true },
+      { id: "p2", from: "fornalha", to: "bezalel", type: "prod", arco: true },
     ],
     view: { x: 0, y: 0, z: 1 },
     selected: null,
@@ -92,7 +102,24 @@
   const tick = () => ($("#clock").textContent = now());
   tick(); setInterval(tick, 1000);
 
+  function renderTelemetria() {
+    const tel = document.getElementById("telemetria");
+    if (!tel) return;
+    const motores = state.nodes.filter((n) => n.id !== "asafe");
+    const online = motores.filter((n) => n.live).length;
+    const NOMES = { normal: "Na rede elétrica", bateria: "Na bateria", aviso: "Aviso", critico: "Crítico", desligado: "Desligado" };
+    const cor = NIVEL_COR[reator.nivel] || NIVEL_COR.normal;
+    tel.innerHTML = `
+      <div class="tel-item tel-nucleo"><span class="dot ${reator.nivel === "desligado" ? "off" : "pulse"}"></span><b>Núcleo Asafe</b><span>${NOMES[reator.nivel] || reator.nivel}</span></div>
+      <div class="tel-item"><span>Motores</span><b>${online}/${motores.length}</b></div>
+      <div class="tel-item"><span>Conexões</span><b>${state.edges.length}</b></div>
+      <div class="tel-item tel-energia"><span>Energia</span><b>${Math.round(reator.pct)}%</b>
+        <i class="tel-caixas">${reator.caixas.map((p) => `<em style="--p:${p}%;--cor:${cor}"></em>`).join("")}</i></div>
+      <div class="tel-item"><span>Autonomia</span><b>${reator.autonomia >= 1 ? Math.round(reator.autonomia) + " h" : Math.round(reator.autonomia * 60) + " min"}</b></div>`;
+  }
+
   function updateStats() {
+    renderTelemetria();
     const ais = state.nodes.filter((n) => n.id !== "asafe");
     $("#st-nodes").textContent = state.nodes.length;
     $("#st-lines").textContent = state.edges.length;
@@ -126,7 +153,14 @@
   $$(".tab").forEach((t) => t.addEventListener("click", () => showView(t.dataset.view)));
 
   /* ---------------- toasts ---------------- */
+  const atividade = [];
+  function registrar(msg) {
+    atividade.unshift({ hora: now(), msg });
+    if (atividade.length > 20) atividade.pop();
+    if (state.selected == null && $("#inspector")) renderInspector();
+  }
   function toast(msg) {
+    registrar(msg);
     const el = document.createElement("div");
     el.className = "toast";
     el.innerHTML = `<span class="dot"></span>${msg}`;
@@ -145,6 +179,12 @@
   }
   function pathFor(e) {
     const a = center(byId(e.from)), b = center(byId(e.to));
+    if (e.raio) return `M${a.x},${a.y} L${b.x},${b.y}`;
+    if (e.arco) {
+      const c = center(byId("asafe"));
+      const r = (Math.hypot(a.x - c.x, a.y - c.y) + Math.hypot(b.x - c.x, b.y - c.y)) / 2;
+      return `M${a.x},${a.y} A${r},${r} 0 0 1 ${b.x},${b.y}`;
+    }
     const dx = b.x - a.x, dy = b.y - a.y;
     if (Math.abs(dy) > Math.abs(dx) * 0.6) {
       const k = dy * 0.5;
@@ -202,8 +242,43 @@
   }
 
   let packets = [];
+  const NIVEL_COR = { normal: "#ff3149", bateria: "#ff3149", aviso: "#f97316", critico: "#ff1f3d", desligado: "#6b6b75" };
+  function reatorSVG() {
+    const c = center(byId("asafe"));
+    const orb = (() => {
+      const motores = state.nodes.filter((n) => n.type === "core" && n.id !== "asafe");
+      if (!motores.length) return ORBITA;
+      return motores.reduce((s, n) => { const p = center(n); return s + Math.hypot(p.x - c.x, p.y - c.y); }, 0) / motores.length;
+    })();
+    const cor = NIVEL_COR[reator.nivel] || NIVEL_COR.normal;
+    const R1 = 122, circ = 2 * Math.PI * R1;
+    const marcas = Array.from({ length: 60 }, (_, i) => {
+      const a = (i / 60) * Math.PI * 2, r1 = 140, r2 = i % 5 ? 146 : 152;
+      return `<line x1="${c.x + r1 * Math.cos(a)}" y1="${c.y + r1 * Math.sin(a)}" x2="${c.x + r2 * Math.cos(a)}" y2="${c.y + r2 * Math.sin(a)}"/>`;
+    }).join("");
+    // 4 segmentos: as caixas de energia, cada um com a sua carga
+    const seg = reator.caixas.map((p, i) => {
+      const n = reator.caixas.length, vao = 0.035, ini = (i / n) * Math.PI * 2 - Math.PI / 2 + vao, fim = ((i + 1) / n) * Math.PI * 2 - Math.PI / 2 - vao;
+      const R = 108, f = ini + (fim - ini) * Math.max(0, Math.min(1, p / 100));
+      const arco = (a0, a1) => `M${c.x + R * Math.cos(a0)},${c.y + R * Math.sin(a0)} A${R},${R} 0 0 1 ${c.x + R * Math.cos(a1)},${c.y + R * Math.sin(a1)}`;
+      return `<path class="reator-caixa-fundo" d="${arco(ini, fim)}"/>${p > 0 ? `<path class="reator-caixa" style="stroke:${cor}" d="${arco(ini, f)}"/>` : ""}`;
+    }).join("");
+    return `<g class="orbita-g" style="--cx:${c.x}px;--cy:${c.y}px">
+      <circle class="orbita" cx="${c.x}" cy="${c.y}" r="${orb}"/>
+      <circle class="orbita-larga" cx="${c.x}" cy="${c.y}" r="${orb + 70}"/>
+      <g class="reator nivel-${reator.nivel}">
+        <g class="reator-marcas" style="stroke:${cor}">${marcas}</g>
+        <circle class="reator-trilho" cx="${c.x}" cy="${c.y}" r="${R1}"/>
+        <circle class="reator-carga" cx="${c.x}" cy="${c.y}" r="${R1}" style="stroke:${cor};stroke-dasharray:${(circ * reator.pct) / 100} ${circ}"/>
+        ${seg}
+      </g>
+      <text class="reator-nome" x="${c.x}" y="${c.y + 184}" text-anchor="middle">ASAFE</text>
+      <text class="reator-sub" x="${c.x}" y="${c.y + 204}" text-anchor="middle">NÚCLEO · SERVIDORES · DADOS</text>
+    </g>`;
+  }
+
   function renderEdges() {
-    let html = "";
+    let html = reatorSVG();
     packets = [];
     for (const e of state.edges) {
       const d = pathFor(e);
@@ -277,7 +352,7 @@
       const w = n.type === "core" ? coreDim(n).w : NODE_W, h = n.type === "core" ? coreDim(n).h : NODE_H;
       x0 = Math.min(x0, n.x); y0 = Math.min(y0, n.y); x1 = Math.max(x1, n.x + w); y1 = Math.max(y1, n.y + h);
     }
-    const padX = 110, padY = 90;
+    const padX = 90, padY = 110;
     const z = Math.min(1.1, Math.max(0.4, Math.min((r.width - padX * 2) / (x1 - x0), (r.height - padY * 2) / (y1 - y0))));
     state.view = { z, x: (r.width - (x1 - x0) * z) / 2 - x0 * z, y: (r.height - (y1 - y0) * z) / 2 - y0 * z - 30 };
     applyView();
@@ -413,6 +488,9 @@
             <span class="ni-meta"><span class="dot ${n.live ? "" : "off"}"></span>${hops(n.id)} ${hops(n.id) === 1 ? "salto" : "saltos"}</span>
           </div>`).join("")}
       </div>
+      <div class="card-title atividade-titulo">Atividade do núcleo</div>
+      <div class="atividade">${atividade.slice(0, 6).map((a) => `<div><time>${a.hora}</time><span>${a.msg}</span></div>`).join("")
+        || `<div class="muted">Nada ainda.</div>`}</div>
       ${legend()}`;
     $$(".net-item", inspector).forEach((el) => el.addEventListener("click", () => select({ kind: "node", id: el.dataset.id })));
   }
@@ -1234,6 +1312,10 @@
 
   function renderEnergia(e) {
     if (window.AsafeFundo) window.AsafeFundo.nivel(e.nivel);  // o wallpaper acompanha a energia
+    if (e.nivel !== reator.nivel) registrar(`Energia: ${(NIVEL_INFO[e.nivel] || [e.nivel])[0]} · ${Math.round(e.carga_pct)}%`);
+    Object.assign(reator, { pct: e.carga_pct, nivel: e.nivel, caixas: e.caixas.map((c) => c.carga_pct), autonomia: e.autonomia_horas });
+    renderTelemetria();
+    if ($("#view-linhas").classList.contains("active")) renderEdges();
     const [rot, cls, txt] = NIVEL_INFO[e.nivel] || [e.nivel, "dim", ""];
     $("#en-sub").textContent = conn.ok
       ? "Estado real das caixas de energia do Asafe, guardado no banco e descarregando em tempo real quando a luz cai."
@@ -1302,7 +1384,7 @@
   function atualizarAtual() {
     if (!conn.ok) return;
     const v = viewAtual();
-    if (v === "energia") return renderEnergiaAtual();
+    if (v === "energia" || v === "linhas") return renderEnergiaAtual();
     if (v === "servidores") renderServidoresReais();
     else if (v === "dados") renderDadosReais();
     else if (v === "observador") renderObservadorReal();
@@ -1318,6 +1400,8 @@
   })();
 
   /* ---------------- inicialização ---------------- */
+  registrar("Núcleo Asafe iniciado");
+  for (const e of state.edges.filter((x) => x.type === "motor")) registrar(`Conexão com ${nameOf(e.to)} ativa`);
   renderNodes();
   renderEdges();
   renderInspector();

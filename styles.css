@@ -918,3 +918,90 @@ body.carregando .app { opacity: 0; transform: scale(0.985); }
 /* texto corrido no estado vazio (trechos em mono continuam na mesma linha) */
 .empty { display: block; }
 .empty::before { display: block; margin: 0 auto 14px; }
+
+/* =========================================================================
+   TELA INICIAL · núcleo orbital
+   ========================================================================= */
+/* o quadro deixa a colmeia aparecer; a grade de pontos sai */
+.board { background: rgba(5, 5, 7, 0.32); backdrop-filter: blur(1.5px); -webkit-backdrop-filter: blur(1.5px); }
+.board-grid { display: none; }
+.board-vignette { background: radial-gradient(ellipse 60% 70% at 45% 48%, rgba(229, 22, 43, 0.07), transparent 60%), radial-gradient(ellipse at center, transparent 50%, rgba(0, 0, 0, 0.55)); }
+:root[data-energia="aviso"] .board-vignette { background: radial-gradient(ellipse 60% 70% at 45% 48%, rgba(249, 115, 22, 0.08), transparent 60%), radial-gradient(ellipse at center, transparent 50%, rgba(0, 0, 0, 0.55)); }
+
+/* os anéis antigos do Asafe dão lugar ao reator */
+.core.red .core-ring { display: none; }
+.core.red .core-name { font-size: 16px; }
+
+/* órbita dos motores */
+.orbita-g { pointer-events: none; }
+.orbita { fill: none; stroke: rgba(255, 255, 255, 0.09); stroke-width: 1; stroke-dasharray: 2 7; }
+.orbita-larga { fill: none; stroke: rgba(255, 49, 73, 0.07); stroke-width: 1; }
+
+/* reator: anel de energia em volta do Asafe */
+.reator-marcas { stroke-width: 1.4; opacity: 0.45; transform-box: view-box; transform-origin: var(--cx) var(--cy); animation: girar 60s linear infinite; }
+.reator-marcas line:nth-child(5n + 1) { opacity: 1; }
+.reator-trilho { fill: none; stroke: rgba(255, 255, 255, 0.06); stroke-width: 3; }
+.reator-carga { fill: none; stroke-width: 3; stroke-linecap: round; transform-box: view-box; transform-origin: var(--cx) var(--cy); transform: rotate(-90deg); filter: drop-shadow(0 0 6px currentColor); transition: stroke-dasharray 600ms var(--ease-out); }
+.reator-caixa-fundo { fill: none; stroke: rgba(255, 255, 255, 0.05); stroke-width: 9; }
+.reator-caixa { fill: none; stroke-width: 9; opacity: 0.85; }
+.reator.nivel-critico { animation: batida 1.6s ease-in-out infinite; }
+.reator.nivel-desligado .reator-marcas { animation: none; }
+@keyframes girar { to { transform: rotate(360deg); } }
+@keyframes batida { 0%, 100% { opacity: 1; } 45% { opacity: 0.35; } }
+
+/* raios do núcleo */
+.edge.motor { stroke-width: 1.4; }
+.edge.prod { stroke: rgba(255, 255, 255, 0.4); stroke-width: 1.6; stroke-dasharray: 1 7; stroke-linecap: round; }
+.packet.prod { fill: #fff; }
+
+/* telemetria no rodapé do quadro */
+.telemetria {
+  position: absolute; left: 14px; right: 14px; bottom: 14px; z-index: 5;
+  display: flex; align-items: center; gap: 4px; padding: 6px; border-radius: 16px;
+  font-variant-numeric: tabular-nums;
+}
+.tel-item { display: flex; align-items: baseline; gap: 8px; padding: 9px 14px; border-radius: 11px; white-space: nowrap; }
+.tel-item span { color: var(--muted); font-size: 12.5px; }
+.tel-item b { font-size: 15px; font-weight: 650; letter-spacing: -0.02em; }
+.tel-nucleo { align-items: center; margin-right: auto; background: rgba(229, 22, 43, 0.1); box-shadow: inset 0 0 0 1px rgba(255, 49, 73, 0.25); }
+.tel-nucleo b { font-size: 13.5px; }
+.tel-energia { align-items: center; }
+.tel-caixas { display: inline-flex; gap: 3px; margin-left: 2px; }
+.tel-caixas em { width: 7px; height: 16px; border-radius: 2px; background: linear-gradient(to top, var(--cor) var(--p), rgba(255, 255, 255, 0.08) var(--p)); }
+
+/* ferramentas e modo ficam acima da telemetria */
+.board-tools, .board-mode { z-index: 6; }
+
+/* adicionar IA: recolhível, não ocupa a lateral */
+.add-ia { padding: 0; gap: 0; }
+.add-ia > summary { list-style: none; cursor: pointer; padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; border-radius: var(--radius); transition: background-color 160ms ease; }
+.add-ia > summary::-webkit-details-marker { display: none; }
+.add-ia > summary .ic { color: var(--red-2); transition: transform 240ms var(--ease-out); }
+.add-ia[open] > summary .ic { transform: rotate(45deg); }
+@media (hover: hover) and (pointer: fine) { .add-ia > summary:hover { background: var(--s4); } }
+.add-ia[open] { padding-bottom: 20px; }
+.add-ia > :not(summary) { margin: 0 20px; }
+.add-ia > :not(summary) + :not(summary) { margin-top: 14px; }
+.side .grow { flex: 1; }
+
+@media (prefers-reduced-motion: reduce) {
+  .reator-marcas, .reator.nivel-critico { animation: none; }
+}
+@media (max-width: 1000px) {
+  .telemetria { flex-wrap: wrap; left: 10px; right: 10px; bottom: 10px; }
+  .tel-nucleo { width: 100%; margin-right: 0; }
+  .tel-item { padding: 7px 10px; }
+}
+
+/* ajustes da tela inicial · rodada 2 */
+.core.red .core-name, .core.red .core-sub { display: none; }
+.core .port { display: none; }
+.reator-nome { fill: #fff; font-family: var(--sans); font-weight: 700; font-size: 17px; letter-spacing: 0.42em; }
+.reator-sub { fill: var(--muted); font-family: var(--sans); font-size: 9.5px; letter-spacing: 0.24em; }
+.atividade-titulo { margin-top: 6px; }
+.atividade { display: flex; flex-direction: column; gap: 9px; font-size: 13px; }
+.atividade div { display: flex; gap: 10px; align-items: baseline; animation: entrar 360ms var(--ease-out) both; }
+.atividade time { color: var(--muted); font-variant-numeric: tabular-nums; font-size: 12px; flex: none; }
+.atividade span { color: var(--text-2); }
+.atividade div:first-child span { color: var(--text); }
+.add-ia .btn.block { width: auto; }
