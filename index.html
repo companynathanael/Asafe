@@ -39,6 +39,10 @@
       <symbol id="i-dots" viewBox="0 0 24 24"><path d="M5 12h.01M12 12h.01M19 12h.01"/></symbol>
       <symbol id="i-chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></symbol>
       <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+      <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol>
+      <symbol id="i-chev-l" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></symbol>
+      <symbol id="i-chev-r" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
+      <symbol id="i-list" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></symbol>
       <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></symbol>
       <symbol id="i-battery" viewBox="0 0 24 24"><rect x="2" y="7" width="17" height="10" rx="2"/><path d="M22 11v2M6 10v4M10 10v4"/></symbol>
     </defs>
@@ -69,35 +73,34 @@
   <div class="vinheta" aria-hidden="true"></div>
 
   <div class="app">
-    <!-- ============ TOPO ============ -->
-    <header class="topbar glass">
-      <div class="brand">
+    <!-- ============ MENU LATERAL DE VIDRO ============ -->
+    <aside class="sidebar" id="sidebar" aria-label="Menu do Asafe">
+      <div class="sb-dots" aria-hidden="true"><i></i><i></i><i></i></div>
+      <div class="sb-brand">
         <img class="brand-symbol" src="assets/asafe-symbol-256.png" alt="" />
         <img class="brand-word" src="assets/asafe-wordmark.png" alt="asafe" />
-        <span class="brand-sep"></span>
-        <span class="brand-sub">Núcleo de IA's<br/>Nathanael Industries</span>
+        <button class="sb-toggle" id="sb-toggle" aria-label="Recolher menu"><svg class="ic xs"><use href="#i-chev-l"/></svg></button>
       </div>
-
+      <div class="sb-user">
+        <span class="avatar red">N</span>
+        <div class="sb-meta"><b>Sr. Nathanael</b><small>Administrador do núcleo</small></div>
+      </div>
+      <div class="sb-label"><span>Menu</span></div>
       <nav class="tabs" role="tablist">
-        <button class="tab active" data-view="linhas"><svg class="ic"><use href="#i-link"/></svg>Linhas Conexionais</button>
-        <button class="tab" data-view="servidores"><svg class="ic"><use href="#i-server"/></svg>Servidores</button>
-        <button class="tab" data-view="energia"><svg class="ic"><use href="#i-bolt"/></svg>Energia</button>
-        <button class="tab" data-view="dados"><svg class="ic"><use href="#i-db"/></svg>Dados</button>
-        <button class="tab" data-view="observador"><svg class="ic"><use href="#i-eye"/></svg>Observador</button>
-        <button class="tab" data-view="permissoes"><svg class="ic"><use href="#i-shield"/></svg>Permissões <span class="badge hidden" id="perm-badge">0</span></button>
+        <button class="tab active" data-view="linhas"><svg class="ic"><use href="#i-link"/></svg><span class="txt">Linhas Conexionais</span></button>
+        <button class="tab" data-view="servidores"><svg class="ic"><use href="#i-server"/></svg><span class="txt">Servidores</span></button>
+        <button class="tab" data-view="dados"><svg class="ic"><use href="#i-folder"/></svg><span class="txt">Dados de Servidores</span></button>
+        <button class="tab" data-view="energia"><svg class="ic"><use href="#i-bolt"/></svg><span class="txt">Energia</span></button>
+        <hr />
+        <button class="tab" data-view="observador"><svg class="ic"><use href="#i-eye"/></svg><span class="txt">Observador</span></button>
+        <button class="tab" data-view="permissoes"><svg class="ic"><use href="#i-shield"/></svg><span class="txt">Permissões</span><span class="badge hidden" id="perm-badge">0</span></button>
       </nav>
-
-      <div class="top-right">
-        <div class="stats">
-          <div class="stat"><b id="st-nodes">2</b><span>nós</span></div>
-          <div class="stat"><b id="st-lines">1</b><span>linhas</span></div>
-          <div class="stat"><b id="st-data">0 B</b><span>dados</span></div>
-        </div>
-        <button class="live-pill" id="conn-pill" title="Conexão com a API do Asafe"><span class="dot pulse" id="conn-dot"></span><span id="live-text">demonstração · conectar</span><span class="mono" id="clock">--:--:--</span></button>
-        <button class="icon-btn" title="Exportar rede"><svg class="ic"><use href="#i-download"/></svg></button>
-        <button class="icon-btn" title="Importar rede"><svg class="ic"><use href="#i-upload"/></svg></button>
+      <div class="sb-foot">
+        <button class="live-pill" id="conn-pill" title="Conexão com a API do Asafe"><span class="dot pulse" id="conn-dot"></span><span class="txt" id="live-text">demonstração · conectar</span></button>
+        <div class="sb-clock"><span class="mono" id="clock">--:--:--</span><span class="txt">Nathanael Industries</span></div>
       </div>
-    </header>
+      <div hidden><b id="st-nodes"></b><b id="st-lines"></b><b id="st-data"></b></div>
+    </aside>
 
     <main class="main">
       <!-- ============ LINHAS CONEXIONAIS ============ -->
@@ -114,13 +117,43 @@
             <button class="tool" data-zoom="center" title="Centralizar no Asafe"><svg class="ic"><use href="#i-target"/></svg></button>
           </div>
 
-          <div class="board-mode glass-2">
+          <div class="arena-topo">
+            <div class="board-mode glass-2">
             <span class="mono label-xs">modo</span>
             <button class="seg active">Observar</button>
             <button class="seg">Conectar</button>
           </div>
+            <div class="arena-acoes glass-2">
+              <button class="tool tool-txt" id="abrir-rede"><svg class="ic sm"><use href="#i-list"/></svg>Rede</button>
+              <button class="tool tool-txt destaque" id="abrir-add"><svg class="ic sm"><use href="#i-plus"/></svg>IA</button>
+            </div>
+          </div>
 
           <div class="telemetria glass-2" id="telemetria" aria-live="polite"></div>
+
+<aside class="side gaveta" aria-label="Detalhes do núcleo">
+            <button class="gaveta-fechar" id="gaveta-fechar" aria-label="Fechar"><svg class="ic sm"><use href="#i-x"/></svg></button>
+            <div class="card glass grow" id="inspector">
+              <!-- preenchido via JS -->
+            </div>
+
+            <details class="card glass add-ia">
+              <summary class="card-title"><span>Adicionar IA</span><svg class="ic sm"><use href="#i-plus"/></svg></summary>
+              <div class="form-row">
+                <label class="field"><span>Nome</span><input id="f-name" placeholder="ex.: Miquéias" /></label>
+                <label class="field"><span>Função</span><input id="f-role" placeholder="ex.: Análise de dados" /></label>
+              </div>
+              <div class="seg-group" id="f-kind">
+                <button class="seg active" data-kind="aux">IA auxiliar</button>
+                <button class="seg" data-kind="main">Agente principal</button>
+              </div>
+              <div class="check-row">
+                <label class="check"><input type="checkbox" id="f-direct" checked /><span class="box"></span>Direto ao Asafe</label>
+                <label class="check"><input type="checkbox" id="f-server" checked /><span class="box"></span>Gerar servidor</label>
+              </div>
+              <button class="btn primary block" id="f-add"><svg class="ic sm"><use href="#i-plus"/></svg>Adicionar à rede</button>
+            </details>
+          </aside>
 
           <div class="world" id="world">
             <svg class="edges" id="edges" width="1" height="1"></svg>
@@ -129,28 +162,7 @@
 
         </div>
 
-        <aside class="side">
-          <div class="card glass grow" id="inspector">
-            <!-- preenchido via JS -->
-          </div>
 
-          <details class="card glass add-ia">
-            <summary class="card-title"><span>Adicionar IA</span><svg class="ic sm"><use href="#i-plus"/></svg></summary>
-            <div class="form-row">
-              <label class="field"><span>Nome</span><input id="f-name" placeholder="ex.: Miquéias" /></label>
-              <label class="field"><span>Função</span><input id="f-role" placeholder="ex.: Análise de dados" /></label>
-            </div>
-            <div class="seg-group" id="f-kind">
-              <button class="seg active" data-kind="aux">IA auxiliar</button>
-              <button class="seg" data-kind="main">Agente principal</button>
-            </div>
-            <div class="check-row">
-              <label class="check"><input type="checkbox" id="f-direct" checked /><span class="box"></span>Direto ao Asafe</label>
-              <label class="check"><input type="checkbox" id="f-server" checked /><span class="box"></span>Gerar servidor</label>
-            </div>
-            <button class="btn primary block" id="f-add"><svg class="ic sm"><use href="#i-plus"/></svg>Adicionar à rede</button>
-          </details>
-        </aside>
       </section>
 
       <!-- ============ SERVIDORES ============ -->
@@ -207,11 +219,20 @@
           <div class="page-head">
             <div>
               <div class="eyebrow">Armazenamento</div>
-              <h1>Dados do Asafe</h1>
-              <p class="muted">Espaço de cada IA (dados e arquivos) e backups do Asafe.</p>
+              <h1>Dados de Servidores</h1>
+              <p class="muted">Uma pasta para cada núcleo. Gire o carrossel e abra a pasta do núcleo que quiser ver.</p>
             </div>
             <button class="btn primary" id="btn-backup"><svg class="ic sm"><use href="#i-download"/></svg>Criar backup</button>
           </div>
+          <div class="pastas-palco">
+            <div class="pastas" id="pastas" role="listbox" aria-label="Pastas dos núcleos" tabindex="0"></div>
+            <div class="cnav">
+              <button class="tool" data-p-step="-1" aria-label="Pasta anterior"><svg class="ic"><use href="#i-chev-l"/></svg></button>
+              <div class="cdots" id="pastas-dots"></div>
+              <button class="tool" data-p-step="1" aria-label="Próxima pasta"><svg class="ic"><use href="#i-chev-r"/></svg></button>
+            </div>
+          </div>
+          <div class="pasta-aberta glass" id="pasta-aberta" hidden></div>
           <div class="split">
             <div class="card glass">
               <div class="card-title">Uso por IA</div>

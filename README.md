@@ -20,7 +20,7 @@ Abra http://127.0.0.1:8000/painel/, clique na pílula **"demonstração · conec
 | --- | --- |
 | **Linhas Conexionais** | Quadro com o núcleo Asafe e as IA's. Uma *linha conexional* permite que uma IA opere **dentro** de outra (clicar, digitar, ler tela, pensar, executar). O painel lateral mostra a interface da IA operada em tempo real. Os motores aparecem conectados ao Asafe, cada um com seu tema: **Gather** (ciano, APIs), **Fornalha** (laranja, funde e prova) e **Bezalel** (verde, molda as IAs), com a linha de produção Gather → Fornalha → Bezalel. |
 | **Servidores** | Servidores vigiados pelo Asafe: status, métricas, alertas, manutenção, comandos e **Gerar servidor** (cadastrar uma máquina existente ou criar uma nova num provedor). |
-| **Dados** | Espaço usado por IA e backups (criar, baixar, apagar). |
+| **Dados de Servidores** | Uma **pasta por núcleo** (Asafe, Gather, Fornalha, Bezalel) num carrossel 3D de vidro; a pasta abre com Dados, Arquivos, Registros e Backups. Abaixo, uso de espaço e backups. |
 | **Observador** | Auditoria real: tudo que cada IA fez na API (inclusive o que foi negado). |
 | **Permissões** | Pedidos pendentes e permissões ativas. |
 
@@ -41,3 +41,9 @@ Depois abra http://localhost:8080 (ou abra `index.html` direto no navegador).
 - `app.js` — interações do quadro (arrastar, zoom, seleção) e simulações
 - `fundo.js` — wallpaper "colmeia de circuitos": pulsos de energia correndo pelas arestas de uma colmeia hexagonal, lente que acende a colmeia em volta do cursor e reação ao nível de energia (normal, bateria, aviso, crítico, desligado)
 - `assets/` — logo do Asafe (símbolo, wordmark, favicon)
+
+## Navegação
+
+- **Menu lateral de vidro** à esquerda, com pílula que desliza até o item e botão que recolhe para só ícones (lembrado no navegador).
+- **Linhas Conexionais** ocupa a arena inteira; clicar num núcleo leva a câmera até ele e abre a **gaveta** com os dados (o núcleo do Asafe aparece animado). Botões **Rede** e **+ IA** no topo da arena.
+

@@ -121,6 +121,7 @@
   function updateStats() {
     renderTelemetria();
     const ais = state.nodes.filter((n) => n.id !== "asafe");
+    if (!$("#st-nodes")) return;
     $("#st-nodes").textContent = state.nodes.length;
     $("#st-lines").textContent = state.edges.length;
   }
@@ -133,11 +134,26 @@
   function moverIndicador(instantaneo = false) {
     const ativa = $(".tab.active");
     if (!ativa) return;
+    pilulaEm(ativa, instantaneo);
+  }
+  function pilulaEm(el, instantaneo = false) {
     if (instantaneo) tabInd.style.transition = "none";
-    tabInd.style.width = ativa.offsetWidth + "px";
-    tabInd.style.transform = `translateX(${ativa.offsetLeft}px)`;
+    const vertical = matchMedia("(min-width: 1001px)").matches;
+    tabInd.style.width = vertical ? "" : el.offsetWidth + "px";
+    tabInd.style.height = vertical ? el.offsetHeight + "px" : "";
+    tabInd.style.transform = vertical ? `translateY(${el.offsetTop}px)` : `translateX(${el.offsetLeft}px)`;
     if (instantaneo) { void tabInd.offsetWidth; tabInd.style.transition = ""; }
   }
+  $$(".tab").forEach((t) => t.addEventListener("mouseenter", () => pilulaEm(t)));
+  $(".tabs").addEventListener("mouseleave", () => moverIndicador());
+  // recolher o menu: só os ícones ficam
+  $("#sb-toggle").addEventListener("click", () => {
+    const fechado = document.body.classList.toggle("menu-recolhido");
+    $("#sb-toggle").setAttribute("aria-label", fechado ? "Expandir menu" : "Recolher menu");
+    try { localStorage.setItem("asafe.menu", fechado ? "1" : "0"); } catch { /* sem armazenamento */ }
+    setTimeout(() => { moverIndicador(true); if ($("#view-linhas").classList.contains("active")) (state.selected ? viajarAte(state.selected) : fit()); dispor(); }, 560);
+  });
+  try { if (localStorage.getItem("asafe.menu") === "1") document.body.classList.add("menu-recolhido"); } catch { /* */ }
   addEventListener("resize", () => moverIndicador(true));
   if (document.fonts) document.fonts.ready.then(() => moverIndicador(true));
   requestAnimationFrame(() => moverIndicador(true));
@@ -148,7 +164,7 @@
     moverIndicador();
     const aba = $(`.tab[data-view="${v}"]`);
     if (aba && matchMedia("(max-width: 1000px)").matches) aba.scrollIntoView({ inline: "center", block: "nearest", behavior: "smooth" });
-    if (v === "linhas") requestAnimationFrame(renderEdges);
+    if (v === "linhas") requestAnimationFrame(() => { renderEdges(); if (state.selected) viajarAte(state.selected); else fit(); });
   }
   $$(".tab").forEach((t) => t.addEventListener("click", () => showView(t.dataset.view)));
 
@@ -374,6 +390,7 @@
     })
   );
   board.addEventListener("wheel", (e) => {
+    if (e.target.closest(".gaveta")) return;
     e.preventDefault();
     const r = board.getBoundingClientRect();
     zoomAt(e.deltaY < 0 ? 1.08 : 1 / 1.08, e.clientX - r.left, e.clientY - r.top);
@@ -382,7 +399,7 @@
   // arrastar: fundo = pan, nó = mover
   let drag = null;
   board.addEventListener("pointerdown", (e) => {
-    if (e.target.closest(".board-tools, .board-mode, .perm-pop")) return;
+    if (e.target.closest(".board-tools, .board-mode, .perm-pop, .gaveta, .arena-topo, .telemetria")) return;
     const nodeEl = e.target.closest(".node, .core");
     drag = { sx: e.clientX, sy: e.clientY, moved: false, nodeEl };
     if (nodeEl) { const n = byId(nodeEl.dataset.id); drag.n = n; drag.ox = n.x; drag.oy = n.y; }
@@ -427,12 +444,34 @@
     $$(".node, .core", nodesEl).forEach((el) =>
       el.classList.toggle("selected", state.selected?.kind === "node" && state.selected.id === el.dataset.id));
   }
+  const gaveta = $(".gaveta");
+  function abrirGaveta() { gaveta.classList.add("aberta"); board.classList.add("com-gaveta"); }
+  function fecharGaveta() { gaveta.classList.remove("aberta"); board.classList.remove("com-gaveta"); }
+  // a câmera desliza até o núcleo, deixando espaço para a gaveta à direita
+  function viajarAte(sel) {
+    let alvo;
+    if (sel.kind === "node") alvo = center(byId(sel.id));
+    else { const e = state.edges.find((x) => x.id === sel.id); const a = center(byId(e.from)), b = center(byId(e.to)); alvo = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }; }
+    const r = board.getBoundingClientRect();
+    const livre = r.width > 900 ? r.width - 400 : r.width;
+    const z = Math.max(state.view.z, sel.id === "asafe" ? 1.15 : 1.05);
+    world.classList.add("viajando");
+    state.view = { z, x: livre / 2 - alvo.x * z, y: r.height / 2 - alvo.y * z - 20 };
+    applyView();
+    clearTimeout(viajarAte.t);
+    viajarAte.t = setTimeout(() => world.classList.remove("viajando"), 760);
+  }
   function select(sel) {
     state.selected = sel;
     markSelection();
     renderEdges();
     renderInspector();
+    if (sel) { abrirGaveta(); viajarAte(sel); gaveta.scrollTop = 0; gaveta.classList.remove("entrando"); void gaveta.offsetWidth; gaveta.classList.add("entrando"); }
+    else fecharGaveta();
   }
+  $("#gaveta-fechar").addEventListener("click", () => { select(null); world.classList.add("viajando"); fit(); setTimeout(() => world.classList.remove("viajando"), 760); });
+  $("#abrir-rede").addEventListener("click", () => { state.selected = null; markSelection(); renderEdges(); renderInspector(); abrirGaveta(); });
+  $("#abrir-add").addEventListener("click", () => { abrirGaveta(); const d = $(".add-ia"); d.open = true; setTimeout(() => { d.scrollIntoView({ block: "nearest", behavior: "smooth" }); $("#f-name").focus(); }, 380); });
 
   const inspector = $("#inspector");
   let mirrorRun = 0;
@@ -497,8 +536,22 @@
 
   function renderNodeInspector(id) {
     if (id === "asafe") {
+      const motoresOn = state.nodes.filter((n) => n.id !== "asafe" && n.live).length;
       inspector.innerHTML = `
-        <div class="card-title">Núcleo <span class="tag solid">Ativo</span></div>
+        <div class="nucleo-hero">
+          <svg class="nh-aneis" viewBox="0 0 200 200" aria-hidden="true">
+            <circle class="nh-a1" cx="100" cy="100" r="92"/><circle class="nh-a2" cx="100" cy="100" r="78"/>
+            <circle class="nh-carga" cx="100" cy="100" r="66" style="stroke-dasharray:${(2 * Math.PI * 66 * reator.pct) / 100} 999"/>
+          </svg>
+          <img class="nh-logo" src="assets/asafe-symbol-red.png" alt="" />
+          <div class="nh-energia"><b>${Math.round(reator.pct)}%</b><span>energia</span></div>
+        </div>
+        <div class="card-title">Núcleo Asafe <span class="tag solid">Ativo</span></div>
+        <div class="nh-stats">
+          <div><b>${motoresOn}</b><span>motores online</span></div>
+          <div><b>${state.edges.length}</b><span>conexões</span></div>
+          <div><b>${reator.autonomia >= 1 ? Math.round(reator.autonomia) + " h" : Math.round(reator.autonomia * 60) + " min"}</b><span>autonomia</span></div>
+        </div>
         <div class="srv-head">${av({ id: "asafe", name: "Asafe" }, "lg")}<div class="t"><b>Asafe</b><span>Servidores · Dados · Conexões · Permissões</span></div></div>
         <dl class="kv">
           <dt>Servidores</dt><dd>${servers.length} gerado${servers.length === 1 ? "" : "s"}</dd>
@@ -1176,6 +1229,8 @@
   async function renderDadosReais() {
     try {
       const usos = admin() ? await api("GET", "/armazenamento/uso/todos") : [await api("GET", "/armazenamento/uso")];
+      for (const u of usos) usoPorNucleo[u.agente] = u;
+      renderPastas();
       $("#usage").innerHTML = usos.map((u) => {
         const pct = u.cota_bytes ? Math.min(100, (100 * u.total_bytes) / u.cota_bytes) : 0;
         return `<div class="usage-row"><div class="u-top">${av(byId(u.agente) || { id: u.agente, name: u.agente }, "sm")}<b>${esc(u.agente)}</b>
@@ -1378,6 +1433,126 @@
   $("#en-retorno").addEventListener("click", (ev) => acaoEnergia(ev.currentTarget, demoEnergia.retorno, "/energia/retorno"));
   $("#en-avancar").addEventListener("click", (ev) => acaoEnergia(ev.currentTarget, () => demoEnergia.avancar(6), "/energia/avancar?horas=6"));
   renderEnergia(demoEnergia.estado());
+
+
+  /* =========================================================
+     DADOS DE SERVIDORES · pastas por núcleo
+     Carrossel 3D de vidro (a mesma técnica do Arsenal da Ares):
+     a pasta do centro fica em destaque; clicar nela abre a pasta.
+     ========================================================= */
+  const PASTAS = [
+    { id: "asafe", nome: "Asafe", tema: "red", logo: "assets/asafe-symbol-red.png", papel: "Núcleo: servidores, dados, conexões e permissões" },
+    ...Object.entries(MOTORES).map(([id, m]) => ({ id, nome: m.nome, tema: m.tema, logo: m.logo, papel: m.papel })),
+  ];
+  const SUBPASTAS = [["dados", "Dados", "db"], ["arquivos", "Arquivos", "folder"], ["registros", "Registros", "list"], ["backups", "Backups", "download"]];
+  const usoPorNucleo = {};   // preenchido com o uso real quando conectado
+  const palco = $("#pastas"), pontos = $("#pastas-dots");
+  let pIdx = 0, pArrasto = null, pMoveu = false;
+  const reduzMov = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  function capaPasta(p) {
+    return `<svg class="pasta-svg" viewBox="0 0 240 180" aria-hidden="true">
+      <path class="pasta-fundo" d="M14 34 a10 10 0 0 1 10-10 h62 l16 16 h114 a10 10 0 0 1 10 10 v108 a10 10 0 0 1-10 10 H24 a10 10 0 0 1-10-10z"/>
+      <rect class="pasta-folha f1" x="34" y="44" width="172" height="100" rx="6"/>
+      <rect class="pasta-folha f2" x="44" y="38" width="152" height="100" rx="6"/>
+      <path class="pasta-frente" d="M10 70 a10 10 0 0 1 10-10 h200 a10 10 0 0 1 10 10 l-8 88 a10 10 0 0 1-10 9 H28 a10 10 0 0 1-10-9z"/>
+    </svg>
+    <img class="pasta-logo" src="${p.logo}" alt="" />`;
+  }
+  function renderPastas() {
+    palco.innerHTML = PASTAS.map((p, i) => {
+      const u = usoPorNucleo[p.id];
+      return `<div class="pasta tema-${p.tema}" role="option" id="pasta-${i}" data-i="${i}" aria-label="Pasta ${esc(p.nome)}">
+        <div class="pasta-capa">${capaPasta(p)}<span class="pasta-num">Núcleo ${i + 1}</span></div>
+        <div class="pasta-info">
+          <h3>${esc(p.nome)}</h3>
+          <span class="pasta-meta">${SUBPASTAS.length} subpastas · ${u ? bytes(u.total_bytes) : "0 B"}</span>
+          <p>${esc(p.papel)}</p>
+          <span class="pasta-acao">Abrir pasta ${icon("arrow", "xs")}</span>
+        </div>
+      </div>`;
+    }).join("");
+    pontos.innerHTML = PASTAS.map((_, i) => `<i data-i="${i}"></i>`).join("");
+    $$(".pasta", palco).forEach((c, i) => {
+      c.addEventListener("click", () => { if (pMoveu) return; if (i !== pIdx) { pIdx = i; dispor(); } else abrirPasta(i); });
+      c.addEventListener("pointermove", (e) => {
+        if (i !== pIdx || reduzMov || e.pointerType !== "mouse") return;
+        const r = c.getBoundingClientRect(), x = (e.clientX - r.left) / r.width - 0.5, y = (e.clientY - r.top) / r.height - 0.5;
+        c.style.transform = `rotateX(${-y * 12}deg) rotateY(${x * 12}deg) scale(1.02)`;
+      });
+      c.addEventListener("pointerleave", () => i === pIdx && dispor());
+    });
+    $$("i", pontos).forEach((d) => d.addEventListener("click", () => { pIdx = +d.dataset.i; dispor(); }));
+    dispor();
+  }
+  function dispor() {
+    const cel = innerWidth < 760;
+    $$(".pasta", palco).forEach((c, i) => {
+      const off = i - pIdx, ab = Math.abs(off);
+      c.style.transform = reduzMov ? `translateX(${off * (cel ? 72 : 64)}%) scale(${1 - ab * 0.12})`
+        : `translateX(${off * (cel ? 72 : 64)}%) translateZ(${-ab * 120}px) rotateY(${off * -28}deg) scale(${1 - ab * 0.12})`;
+      c.style.opacity = ab > 2 ? 0 : 1 - ab * 0.38;
+      c.style.zIndex = 10 - ab;
+      c.style.pointerEvents = ab > 2 ? "none" : "";
+      c.setAttribute("aria-selected", off === 0);
+    });
+    palco.setAttribute("aria-activedescendant", "pasta-" + pIdx);
+    $$("i", pontos).forEach((d, i) => d.classList.toggle("on", i === pIdx));
+  }
+  const passo = (n) => { pIdx = Math.max(0, Math.min(PASTAS.length - 1, pIdx + n)); dispor(); };
+  $$("[data-p-step]").forEach((b) => b.addEventListener("click", () => passo(+b.dataset.pStep)));
+  palco.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowRight") passo(1); else if (e.key === "ArrowLeft") passo(-1);
+    else if (e.key === "Enter" || e.key === " ") { e.preventDefault(); abrirPasta(pIdx); }
+  });
+  let travaRoda = 0;
+  palco.addEventListener("wheel", (e) => {
+    const d = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+    if (Math.abs(d) < 8 || Date.now() < travaRoda) return;
+    e.preventDefault(); travaRoda = Date.now() + 550; passo(d > 0 ? 1 : -1);
+  }, { passive: false });
+  palco.addEventListener("pointerdown", (e) => { pArrasto = e.clientX; pMoveu = false; });
+  palco.addEventListener("pointerup", (e) => {
+    if (pArrasto == null) return;
+    const dx = e.clientX - pArrasto;
+    if (Math.abs(dx) > 50) { pMoveu = true; passo(dx < 0 ? 1 : -1); }
+    pArrasto = null;
+  });
+  addEventListener("resize", dispor);
+
+  function abrirPasta(i) {
+    const p = PASTAS[i], u = usoPorNucleo[p.id];
+    const conta = { dados: u ? u.dados.quantidade : 0, arquivos: u ? u.arquivos.quantidade : 0, registros: 0, backups: 0 };
+    const caixa = $("#pasta-aberta");
+    caixa.className = `pasta-aberta glass tema-${p.tema}`;
+    caixa.hidden = false;
+    caixa.innerHTML = `
+      <div class="pa-topo">
+        <span class="avatar logo ${p.tema} lg"><img src="${p.logo}" alt="" /></span>
+        <div class="pa-titulo"><b>Pasta ${esc(p.nome)}</b><span class="mono">/asafe/nucleos/${p.id}/</span></div>
+        <button class="icon-btn" id="pa-fechar" aria-label="Fechar pasta">${icon("x")}</button>
+      </div>
+      <div class="pa-grade">
+        ${SUBPASTAS.map(([k, nome, ic], j) => `
+          <button class="subpasta" style="--d:${j * 60}ms" data-sub="${k}">
+            <span class="sp-ic">${icon(ic)}</span>
+            <b>${nome}</b>
+            <span>${conta[k]} ${conta[k] === 1 ? "item" : "itens"}</span>
+          </button>`).join("")}
+      </div>
+      <div class="pa-conteudo" id="pa-conteudo">
+        <div class="empty">Pasta ${esc(p.nome)} vazia por enquanto. ${conn.ok ? "Quando este núcleo gravar dados no Asafe, eles aparecem aqui." : "Conecte o painel ao Asafe para ver o conteúdo real."}</div>
+      </div>`;
+    $("#pa-fechar").addEventListener("click", () => { caixa.hidden = true; palco.focus({ preventScroll: true }); });
+    $$(".subpasta", caixa).forEach((b) => b.addEventListener("click", () => {
+      $$(".subpasta", caixa).forEach((x) => x.classList.toggle("ativa", x === b));
+      const nome = b.querySelector("b").textContent;
+      $("#pa-conteudo").innerHTML = `<div class="empty">${esc(nome)} de ${esc(p.nome)}: nenhum item ainda.</div>`;
+    }));
+    caixa.classList.remove("abrindo"); void caixa.offsetWidth; caixa.classList.add("abrindo");
+    caixa.scrollIntoView({ behavior: reduzMov ? "auto" : "smooth", block: "nearest" });
+  }
+  renderPastas();
 
   /* ---------------- atualização ---------------- */
   function viewAtual() { return $(".tab.active")?.dataset.view; }
