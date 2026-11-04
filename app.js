@@ -948,6 +948,7 @@
 
   /* ---------------- janela (modal) ---------------- */
   function abrirModal(html, aoMontar) {
+    $("#modal-box").className = "modal glass-strong";
     $("#modal-box").innerHTML = html;
     $("#modal").classList.add("open");
     $("#modal").setAttribute("aria-hidden", "false");
@@ -1514,6 +1515,7 @@
   const passo = (n) => { pIdx = Math.max(0, Math.min(PASTAS.length - 1, pIdx + n)); dispor(); };
   $$("[data-p-step]").forEach((b) => b.addEventListener("click", () => passo(+b.dataset.pStep)));
   palco.addEventListener("keydown", (e) => {
+    if (["ArrowLeft", "ArrowRight", "Enter", " "].includes(e.key)) e.stopPropagation();  // o carrossel cuida das próprias teclas
     if (e.key === "ArrowRight") passo(1); else if (e.key === "ArrowLeft") passo(-1);
     else if (e.key === "Enter" || e.key === " ") { e.preventDefault(); abrirPasta(pIdx); }
   });
@@ -1725,14 +1727,176 @@
     } else if (byId(sel.id)?.type !== "core") removerIA(sel.id);
   }
 
+  /* =========================================================
+     COMANDOS DE TECLADO
+     Um registro só: o teclado, a paleta (Ctrl+K) e a janela de atalhos (?) leem daqui.
+     ========================================================= */
+  const MAC = /Mac|iPhone|iPad/.test(navigator.platform);
+  const MOD = MAC ? "⌘" : "Ctrl";
+  const naAba = (v) => Object.assign(() => viewAtual() === v, { aba: v });
+  const sempre = () => true;
+  const ABAS_TECLA = ["linhas", "servidores", "dados", "energia", "observador", "permissoes"];
+  const NOME_ABA = { linhas: "Linhas Conexionais", servidores: "Servidores", dados: "Dados de Servidores", energia: "Energia", observador: "Observador", permissoes: "Permissões" };
+  const moverCamera = (dx, dy) => { state.view.x += dx; state.view.y += dy; applyView(); };
+  const centroBoard = () => { const r = board.getBoundingClientRect(); return [r.width / 2, r.height / 2]; };
+
+  function duplicarIA() {
+    const sel = state.selected;
+    const n = sel?.kind === "node" ? byId(sel.id) : null;
+    if (!n || n.type === "core") { toast("Selecione uma IA (não um núcleo) para duplicar"); return; }
+    const id = n.id.replace(/-[a-z0-9]{3,}$/, "") + "-" + Date.now().toString(36).slice(-4);
+    const copia = { ...n, id, name: n.name + " (cópia)", x: n.x + 40, y: n.y + 90 };
+    state.nodes.push(copia);
+    renderNodes(); renderEdges(); updateStats(); salvarRede();
+    select({ kind: "node", id });
+    toast(`${n.name} duplicada`);
+  }
+  function selecionarTodas() {
+    multi.length = 0;
+    for (const n of state.nodes) if (n.id !== "asafe") multi.push(n.id);
+    marcarMulti(); atualizarDica();
+    toast(`${multi.length} selecionadas · C conecta todas em sequência`);
+  }
+  function fecharTudo() {
+    if (!$("#pasta-aberta").hidden && viewAtual() === "dados") { $("#pasta-aberta").hidden = true; return; }
+    if (multi.length || modoConectar) { limparMulti(); if (modoConectar) definirModo(false); return; }
+    if (gaveta.classList.contains("aberta")) { select(null); return; }
+  }
+
+  // [teclas, grupo, nome, quando vale, ação]
+  const COMANDOS = [
+    ...ABAS_TECLA.map((v, i) => [[String(i + 1)], "Geral", `Ir para ${NOME_ABA[v]}`, sempre, () => showView(v)]),
+    [["mod+k"], "Geral", "Paleta de comandos", sempre, () => abrirPaleta()],
+    [["?"], "Geral", "Ver todos os atalhos", sempre, () => abrirAtalhos()],
+    [["m"], "Geral", "Recolher ou expandir o menu", sempre, () => $("#sb-toggle").click()],
+    [["l"], "Geral", "Conectar o painel à API do Asafe", sempre, () => modalConexao()],
+    [["escape"], "Geral", "Fechar ou limpar a seleção", sempre, fecharTudo],
+
+    [["c"], "Linhas Conexionais", "Conectar as IAs selecionadas", naAba("linhas"), () => conectarSelecionadas()],
+    [["x"], "Linhas Conexionais", "Ligar ou desligar o modo Conectar", naAba("linhas"), () => { definirModo(!modoConectar); toast(modoConectar ? "Modo Conectar ligado: clique na origem e no destino" : "Modo Observar"); }],
+    [["mod+a"], "Linhas Conexionais", "Selecionar todas as IAs", naAba("linhas"), selecionarTodas],
+    [["a"], "Linhas Conexionais", "Adicionar IA", naAba("linhas"), () => $("#abrir-add").click()],
+    [["d"], "Linhas Conexionais", "Duplicar a IA selecionada", naAba("linhas"), duplicarIA],
+    [["r"], "Linhas Conexionais", "Abrir a Rede", naAba("linhas"), () => $("#abrir-rede").click()],
+    [["delete", "backspace"], "Linhas Conexionais", "Apagar IA ou linha selecionada", naAba("linhas"), () => apagarSelecionado()],
+    [["f"], "Linhas Conexionais", "Enquadrar o fluxograma", naAba("linhas"), () => { world.classList.add("viajando"); fit(); setTimeout(() => world.classList.remove("viajando"), 760); }],
+    [["h"], "Linhas Conexionais", "Voltar para o Asafe", naAba("linhas"), () => { world.classList.add("viajando"); centerCore(); setTimeout(() => world.classList.remove("viajando"), 760); }],
+    [["+", "="], "Linhas Conexionais", "Aproximar", naAba("linhas"), () => zoomAt(1.15, ...centroBoard())],
+    [["-"], "Linhas Conexionais", "Afastar", naAba("linhas"), () => zoomAt(1 / 1.15, ...centroBoard())],
+    [["arrowup", "arrowdown", "arrowleft", "arrowright"], "Linhas Conexionais", "Mover a câmera", naAba("linhas"), (k) => moverCamera(k === "arrowleft" ? 80 : k === "arrowright" ? -80 : 0, k === "arrowup" ? 80 : k === "arrowdown" ? -80 : 0)],
+
+    [["g"], "Servidores", "Gerar servidor", naAba("servidores"), () => $("#btn-gerar-srv").click()],
+
+    [["arrowleft", "arrowright"], "Dados de Servidores", "Girar as pastas", naAba("dados"), (k) => passo(k === "arrowleft" ? -1 : 1)],
+    [["enter"], "Dados de Servidores", "Abrir a pasta do centro", naAba("dados"), () => abrirPasta(pIdx)],
+    [["b"], "Dados de Servidores", "Criar backup", naAba("dados"), () => $("#btn-backup").click()],
+
+    [["q"], "Energia", "Simular queda de luz", naAba("energia"), () => $("#en-queda").click()],
+    [["p"], "Energia", "Avançar 6 horas", naAba("energia"), () => $("#en-avancar").click()],
+    [["v"], "Energia", "A luz voltou", naAba("energia"), () => $("#en-retorno").click()],
+  ];
+  const mostrarTecla = (t) => ({ "mod+k": `${MOD} K`, "mod+a": `${MOD} A`, escape: "Esc", delete: "Delete", backspace: "⌫", enter: "Enter",
+    arrowup: "↑", arrowdown: "↓", arrowleft: "←", arrowright: "→", "=": null }[t] ?? t.toUpperCase());
+  const teclasHTML = (teclas) => teclas.map(mostrarTecla).filter(Boolean).map((t) => `<kbd>${esc(t)}</kbd>`).join("");
+
+  function teclaDoEvento(e) {
+    const k = e.key.length === 1 ? e.key.toLowerCase() : e.key.toLowerCase();
+    return (e.ctrlKey || e.metaKey) && k.length === 1 && k !== "?" ? "mod+" + k : k;
+  }
   document.addEventListener("keydown", (e) => {
-    if (e.target.closest("input, textarea, select, [contenteditable]") || $("#modal").classList.contains("open")) return;
-    if (!$("#view-linhas").classList.contains("active")) return;
-    const k = e.key.toLowerCase();
-    if (k === "c" && !e.ctrlKey && !e.metaKey && !e.altKey) { e.preventDefault(); conectarSelecionadas(); }
-    else if (k === "escape") { limparMulti(); if (modoConectar) definirModo(false); }
-    else if (k === "delete" || k === "backspace") { e.preventDefault(); apagarSelecionado(); }
+    const t = teclaDoEvento(e);
+    const digitando = e.target.closest("input, textarea, select, [contenteditable]");
+    if (digitando && t !== "mod+k" && t !== "escape") return;
+    if ($("#modal").classList.contains("open") && t !== "mod+k") return;   // a janela cuida das próprias teclas
+    if (e.altKey) return;
+    if ((e.ctrlKey || e.metaKey) && !t.startsWith("mod+")) return;          // não rouba Ctrl+C, Ctrl+R etc.
+    if (t === "enter" && e.target.closest("button, a")) return;              // Enter num botão continua clicando nele
+    const cmd = COMANDOS.find(([teclas, , , quando]) => teclas.includes(t) && quando());
+    if (!cmd) return;
+    e.preventDefault();
+    cmd[4](t);
+    piscarTecla(t);
   });
+
+  // mostra rapidamente a tecla usada (feedback visual de que o comando pegou)
+  const eco = document.createElement("div");
+  eco.className = "tecla-eco";
+  document.body.appendChild(eco);
+  function piscarTecla(t) {
+    if (t === "?" || t === "mod+k" || t === "escape") return;
+    eco.innerHTML = teclasHTML([t]);
+    eco.classList.remove("on"); void eco.offsetWidth; eco.classList.add("on");
+  }
+
+  $("#sb-atalhos").addEventListener("click", () => abrirAtalhos());
+  if (MAC) $$(".kbd-mod").forEach((k) => (k.textContent = "⌘"));
+  /* ---------- janela de atalhos (?) ---------- */
+  function abrirAtalhos() {
+    const grupos = {};
+    for (const [teclas, grupo, nome] of COMANDOS) {
+      if (/^Ir para /.test(nome)) continue;
+      const vis = teclas.filter((x) => !["backspace", "=", "arrowdown", "arrowup"].includes(x) || teclas.length === 1);
+      (grupos[grupo] ||= []).push([nome === "Mover a câmera" ? ["arrowleft", "arrowright", "arrowup", "arrowdown"] : vis, nome]);
+    }
+    grupos.Geral.unshift([["1", "6"], "Trocar de aba (1 a 6, na ordem do menu)"]);
+    abrirModal(`
+      ${cabecalho("Atalhos do teclado", `Funcionam fora dos campos de texto. ${MOD}+K abre a paleta de comandos.`)}
+      <div class="atalhos">
+        ${Object.entries(grupos).map(([g, itens]) => `
+          <section><h3>${esc(g)}</h3>
+            ${itens.map(([ts, nome]) => `<div class="atalho"><span>${esc(nome)}</span><span class="teclas">${ts.length === 2 && ts[0] === "1" ? "<kbd>1</kbd>–<kbd>6</kbd>" : teclasHTML(ts)}</span></div>`).join("")}
+          </section>`).join("")}
+      </div>
+      <div class="modal-acoes"><button class="btn primary" data-fechar>Entendi</button></div>`);
+    $("#modal-box").classList.add("modal-largo");
+  }
+
+  /* ---------- paleta de comandos (Ctrl+K) ---------- */
+  function abrirPaleta() {
+    if ($("#modal").classList.contains("open") && $("#paleta-busca")) { fecharModal(); return; }
+    // a paleta lista tudo: comandos de outra tela levam até ela antes de rodar
+    const lista = [...COMANDOS.filter(([, , n, q]) => q() && n !== "Paleta de comandos"),
+      ...COMANDOS.filter(([, , n, q]) => !q() && q.aba && n !== "Paleta de comandos")];
+    abrirModal(`
+      <div class="paleta">
+        <div class="paleta-busca">${icon("search", "sm")}<input id="paleta-busca" placeholder="Digite um comando… (ex.: conectar, energia, backup)" autocomplete="off" /><kbd>Esc</kbd></div>
+        <div class="paleta-lista" id="paleta-lista" role="listbox"></div>
+      </div>`, (box) => {
+      box.classList.add("modal-paleta");
+      const input = $("#paleta-busca", box), ul = $("#paleta-lista", box);
+      let itens = lista, ativo = 0;
+      const normal = (s) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+      const desenhar = () => {
+        ul.innerHTML = itens.map(([teclas, grupo, nome], i) => `
+          <button class="paleta-item ${i === ativo ? "on" : ""}" role="option" data-i="${i}">
+            <span class="pi-nome">${esc(nome)}</span><span class="pi-grupo">${esc(grupo)}</span><span class="teclas">${teclasHTML(teclas.slice(0, 2))}</span>
+          </button>`).join("") || `<div class="empty">Nenhum comando com esse nome.</div>`;
+        $$(".paleta-item", ul).forEach((b) => {
+          b.addEventListener("mousemove", () => { if (ativo !== +b.dataset.i) { ativo = +b.dataset.i; desenhar(); } });
+          b.addEventListener("click", () => rodar(+b.dataset.i));
+        });
+        $(".paleta-item.on", ul)?.scrollIntoView({ block: "nearest" });
+      };
+      const rodar = (i) => {
+        const c = itens[i]; if (!c) return;
+        fecharModal();
+        const ir = c[3].aba && viewAtual() !== c[3].aba;
+        if (ir) showView(c[3].aba);
+        setTimeout(() => { c[4](c[0][0]); piscarTecla(c[0][0]); }, ir ? 420 : 60);
+      };
+      input.addEventListener("input", () => {
+        const q = normal(input.value.trim());
+        itens = lista.filter(([, g, n]) => !q || normal(n + " " + g).includes(q));
+        ativo = 0; desenhar();
+      });
+      input.addEventListener("keydown", (e) => {
+        if (e.key === "ArrowDown") { e.preventDefault(); ativo = Math.min(itens.length - 1, ativo + 1); desenhar(); }
+        else if (e.key === "ArrowUp") { e.preventDefault(); ativo = Math.max(0, ativo - 1); desenhar(); }
+        else if (e.key === "Enter") { e.preventDefault(); rodar(ativo); }
+      });
+      desenhar();
+    });
+  }
 
   /* ---------- a rede criada fica salva neste navegador ---------- */
   const CHAVE_REDE = "asafe.rede";

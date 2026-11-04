@@ -48,14 +48,22 @@ Depois abra http://localhost:8080 (ou abra `index.html` direto no navegador).
 - **Linhas Conexionais** ocupa a arena inteira; clicar num núcleo leva a câmera até ele e abre a **gaveta** com os dados (o núcleo do Asafe aparece animado). Botões **Rede** e **+ IA** no topo da arena.
 
 
-## Atalhos e conexões (Linhas Conexionais)
+## Comandos de teclado
 
-| Ação | Como |
-|---|---|
-| Selecionar várias IAs ou núcleos | **Ctrl+clique** (Cmd+clique no Mac) |
-| Conectar as selecionadas, na ordem do clique | **C** |
-| Conectar clicando | botão **Conectar** no topo da arena: clique na origem e depois no destino |
-| Limpar a seleção | **Esc** |
-| Apagar a IA ou a linha selecionada | **Delete** (só o que foi criado por você) |
+Funcionam fora dos campos de texto. **?** mostra todos; **Ctrl+K** (⌘K no Mac) abre a **paleta de comandos**, que busca e roda qualquer ação (se for de outra tela, leva até ela).
+
+| Onde | Tecla | Ação |
+|---|---|---|
+| Geral | **1–6** | Trocar de aba (na ordem do menu) |
+| Geral | **Ctrl+K** · **?** · **M** · **L** · **Esc** | Paleta · atalhos · recolher menu · conectar à API · fechar/limpar |
+| Linhas Conexionais | **Ctrl+clique** | Selecionar várias IAs ou núcleos |
+| Linhas Conexionais | **C** | Conectar as selecionadas, na ordem do clique |
+| Linhas Conexionais | **X** | Modo Conectar (clique na origem e no destino) |
+| Linhas Conexionais | **Ctrl+A** · **A** · **D** · **R** | Selecionar todas · adicionar IA · duplicar IA · abrir a Rede |
+| Linhas Conexionais | **Delete** | Apagar a IA ou a linha selecionada (só o que você criou) |
+| Linhas Conexionais | **F** · **H** · **+ −** · **setas** | Enquadrar · voltar ao Asafe · zoom · mover a câmera |
+| Servidores | **G** | Gerar servidor |
+| Dados de Servidores | **← →** · **Enter** · **B** | Girar as pastas · abrir a pasta · criar backup |
+| Energia | **Q** · **P** · **V** | Simular queda · avançar 6 h · a luz voltou |
 
 As IAs podem ser personalizadas na gaveta: nome, função, cor, ícone, formato (quadrado, redondo ou hexágono), tipo e status. A rede criada fica salva neste navegador.
