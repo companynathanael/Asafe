@@ -47,3 +47,15 @@ Depois abra http://localhost:8080 (ou abra `index.html` direto no navegador).
 - **Menu lateral de vidro** à esquerda, com pílula que desliza até o item e botão que recolhe para só ícones (lembrado no navegador).
 - **Linhas Conexionais** ocupa a arena inteira; clicar num núcleo leva a câmera até ele e abre a **gaveta** com os dados (o núcleo do Asafe aparece animado). Botões **Rede** e **+ IA** no topo da arena.
 
+
+## Atalhos e conexões (Linhas Conexionais)
+
+| Ação | Como |
+|---|---|
+| Selecionar várias IAs ou núcleos | **Ctrl+clique** (Cmd+clique no Mac) |
+| Conectar as selecionadas, na ordem do clique | **C** |
+| Conectar clicando | botão **Conectar** no topo da arena: clique na origem e depois no destino |
+| Limpar a seleção | **Esc** |
+| Apagar a IA ou a linha selecionada | **Delete** (só o que foi criado por você) |
+
+As IAs podem ser personalizadas na gaveta: nome, função, cor, ícone, formato (quadrado, redondo ou hexágono), tipo e status. A rede criada fica salva neste navegador.

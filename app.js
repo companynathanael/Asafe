@@ -235,7 +235,7 @@
     const operating = state.edges.find((e) => e.type === "cx" && e.from === n.id);
     return `
       ${n.kind === "main" ? `<span class="tag solid n-top">Principal</span>` : ""}
-      <span class="avatar ${n.kind === "main" ? "red" : ""}">${initial(n.name)}</span>
+      ${avatarIA(n)}
       <div class="n-text"><span class="n-name">${n.name}</span><span class="n-role">${n.role}</span></div>
       <span class="dot n-dot ${n.live ? "" : "off"}"></span><span class="port"></span>
       ${operated ? `<span class="tag n-op">operada</span>` : operating ? `<span class="tag n-op">operando</span>` : ""}
@@ -246,7 +246,9 @@
     nodesEl.innerHTML = "";
     for (const n of state.nodes) {
       const el = document.createElement("div");
-      el.className = n.type === "core" ? `core ${n.theme || "red"}` : `node ${n.kind}`;
+      el.className = n.type === "core" ? `core ${n.theme || "red"}` : `node ${n.kind} ${n.live ? "" : "offline"}`;
+      if (n.type !== "core") el.style.setProperty("--c", corIA(n));
+      if (multi.includes(n.id)) el.classList.add("multi");
       el.dataset.id = n.id;
       el.style.left = n.x + "px";
       el.style.top = n.y + "px";
@@ -420,13 +422,16 @@
       state.view.x = drag.vx + dx; state.view.y = drag.vy + dy; applyView();
     }
   });
-  board.addEventListener("pointerup", () => {
+  board.addEventListener("pointerup", (e) => {
     if (!drag) return;
     board.classList.remove("panning");
     if (!drag.moved) {
-      if (drag.nodeEl) select({ kind: "node", id: drag.nodeEl.dataset.id });
-      else select(null);
-    }
+      const id = drag.nodeEl?.dataset.id;
+      if (id && (e.ctrlKey || e.metaKey)) alternarMulti(id);
+      else if (id && modoConectar) cliqueConectar(id);
+      else if (id) { limparMulti(); select({ kind: "node", id }); }
+      else { limparMulti(); select(null); }
+    } else if (drag.n && drag.n.type !== "core") salvarRede();
     drag = null;
   });
   board.addEventListener("dblclick", (e) => {
@@ -434,10 +439,7 @@
     if (n) { showView("dados"); toast(`Abrindo dados de ${nameOf(n.dataset.id)}`); }
   });
 
-  $$(".board-mode .seg").forEach((b) => b.addEventListener("click", () => {
-    $$(".board-mode .seg").forEach((x) => x.classList.toggle("active", x === b));
-    if (b.textContent === "Conectar") toast("Modo conectar: arraste de uma porta até outra IA para abrir uma Linha Conexional");
-  }));
+  $$(".board-mode .seg").forEach((b) => b.addEventListener("click", () => definirModo(b.textContent.trim() === "Conectar")));
 
   /* ---------------- seleção & inspetor ---------------- */
   function markSelection() {
@@ -513,6 +515,7 @@
   const LOGOS = { asafe: ["red", "assets/asafe-symbol-red.png"] };
   for (const [id, m] of Object.entries(MOTORES)) LOGOS[id] = [m.tema, m.logo];
   function av(n, size = "") {
+    if (n && n.type !== "core" && (n.cor || n.icone || n.forma)) return avatarIA(n, size);
     const id = n?.id, logo = LOGOS[id];
     if (logo) return `<span class="avatar logo ${logo[0]} ${size}"><img src="${logo[1]}" alt="${n.name || nameOf(id)}" /></span>`;
     return `<span class="avatar ${size} ${avCls(n)}">${initial(n?.name || nameOf(id))}</span>`;
@@ -592,8 +595,9 @@
     const n = byId(id);
     const conns = state.edges.filter((e) => e.from === id || e.to === id);
     inspector.innerHTML = `
-      <div class="card-title">IA <span class="tag dim">${n.live ? "online" : "offline"}</span></div>
-      <div class="srv-head"><span class="avatar lg ${n.kind === "main" ? "red" : ""}">${initial(n.name)}</span><div class="t"><b>${n.name}</b><span>${n.role}</span></div></div>
+      <div class="card-title">IA <span class="tag dim" id="p-status-tag">${n.live ? "online" : "offline"}</span></div>
+      <div class="srv-head"><span id="p-av">${avatarIA(n, "lg")}</span><div class="t"><b id="p-nome-v">${esc(n.name)}</b><span id="p-funcao-v">${esc(n.role)}</span></div></div>
+      ${painelPersonalizar(n)}
       <div class="label-xs">Rota até o Asafe</div>
       <div class="route">
         <span class="chip">${n.name}</span>${icon("arrow", "xs muted")}<span class="chip red">Asafe</span>
@@ -619,6 +623,7 @@
       </div>`;
     $$("[data-edge]", inspector).forEach((el) => el.addEventListener("click", () => select({ kind: "edge", id: el.dataset.edge })));
     $("#open-data").addEventListener("click", () => showView("dados"));
+    ligarPersonalizar(n);
     $("#new-line").addEventListener("click", () => toast(`Escolha a IA em que ${n.name} vai operar`));
   }
 
@@ -733,6 +738,7 @@
     kind = b.dataset.kind;
     $$("#f-kind .seg").forEach((x) => x.classList.toggle("active", x === b));
   }));
+  $$("#f-cores .cor-op").forEach((b) => b.addEventListener("click", () => $$("#f-cores .cor-op").forEach((x) => x.classList.toggle("on", x === b))));
   $("#f-add").addEventListener("click", () => {
     const name = $("#f-name").value.trim();
     if (!name) { $("#f-name").focus(); toast("Dê um nome para a nova IA"); return; }
@@ -740,11 +746,13 @@
     const id = name.toLowerCase().normalize("NFD").replace(/[^a-z0-9]/g, "") + "-" + Date.now().toString(36).slice(-3);
     const core = byId("asafe");
     const ang = Math.random() * Math.PI * 2;
-    state.nodes.push({ id, name, role, kind, live: true, x: core.x + Math.cos(ang) * 320 - 50, y: core.y + Math.sin(ang) * 260 });
+    const cor = $("#f-cores .cor-op.on")?.dataset.cor || (kind === "main" ? "#ff3149" : "#e5e7eb");
+    state.nodes.push({ id, name, role, kind, live: true, cor, forma: "quadrado", icone: null, x: core.x + Math.cos(ang) * 420 - 118, y: core.y + Math.sin(ang) * 380 - 33 });
     if ($("#f-direct").checked) state.edges.push({ id: "e" + Date.now(), from: id, to: "asafe", type: "data" });
     if ($("#f-server").checked) servers.push({ id, name, role, kind, cpu: 6, mem: 12, up: "agora", status: "Iniciando" });
     $("#f-name").value = ""; $("#f-role").value = "";
     renderNodes(); renderEdges(); updateStats(); renderServers(); renderUsage();
+    salvarRede();
     select({ kind: "node", id });
     toast(`${name} adicionada à rede${$("#f-server").checked ? " · servidor gerado" : ""}`);
   });
@@ -1576,6 +1584,173 @@
     const salvo = lerConexao();
     if (salvo?.url && salvo?.token) conectar(salvo.url, salvo.token, { silencioso: true });
     else if (location.pathname.startsWith("/painel")) conn.url = location.origin;
+  })();
+
+
+  /* =========================================================
+     IAs PERSONALIZÁVEIS · CONEXÕES COM CTRL+CLIQUE E TECLA C
+     ========================================================= */
+  const CORES_IA = [["#ff3149", "Vermelho"], ["#22eaff", "Ciano"], ["#f97316", "Laranja"], ["#22c55e", "Verde"],
+    ["#fbbf24", "Âmbar"], ["#f472b6", "Rosa"], ["#3b82f6", "Azul"], ["#e5e7eb", "Branco"]];
+  const ICONES_IA = [["brain", "Mente"], ["bolt", "Energia"], ["eye", "Visão"], ["code", "Código"], ["shield", "Proteção"],
+    ["server", "Servidor"], ["key", "Chave"], ["db", "Dados"], ["cursor", "Operador"], ["link", "Conector"]];
+  const FORMAS_IA = [["quadrado", "Quadrado"], ["redondo", "Redondo"], ["hex", "Hexágono"]];
+  function corIA(n) { return n.cor || (n.kind === "main" ? "#ff3149" : "#e5e7eb"); }
+  function avatarIA(n, size = "") {
+    const dentro = n.icone ? `<svg class="ic"><use href="#i-${n.icone}"/></svg>` : esc(initial(n.name || "?"));
+    return `<span class="avatar ia-av forma-${n.forma || "quadrado"} ${size}" style="--c:${corIA(n)}">${dentro}</span>`;
+  }
+
+  function painelPersonalizar(n) {
+    return `
+      <div class="personalizar">
+        <div class="card-title">Personalizar</div>
+        <div class="form-row">
+          <label class="field"><span>Nome</span><input id="p-nome" value="${esc(n.name)}" maxlength="40" /></label>
+          <label class="field"><span>Função</span><input id="p-funcao" value="${esc(n.role)}" maxlength="60" /></label>
+        </div>
+        <div class="label-xs">Cor</div>
+        <div class="cores" id="p-cores">${CORES_IA.map(([c, nome]) => `<button class="cor-op ${corIA(n) === c ? "on" : ""}" data-cor="${c}" style="--c:${c}" aria-label="${nome}" title="${nome}"></button>`).join("")}</div>
+        <div class="label-xs">Ícone</div>
+        <div class="icones" id="p-icones">
+          <button class="ico-op ${n.icone ? "" : "on"}" data-ico="" title="Inicial do nome">${esc(initial(n.name || "?"))}</button>
+          ${ICONES_IA.map(([i, nome]) => `<button class="ico-op ${n.icone === i ? "on" : ""}" data-ico="${i}" title="${nome}" aria-label="${nome}"><svg class="ic sm"><use href="#i-${i}"/></svg></button>`).join("")}
+        </div>
+        <div class="label-xs">Formato</div>
+        <div class="seg-group" id="p-formas">${FORMAS_IA.map(([f, nome]) => `<button class="seg ${(n.forma || "quadrado") === f ? "active" : ""}" data-forma="${f}">${nome}</button>`).join("")}</div>
+        <div class="seg-group" id="p-tipo">
+          <button class="seg ${n.kind !== "main" ? "active" : ""}" data-tipo="aux">IA auxiliar</button>
+          <button class="seg ${n.kind === "main" ? "active" : ""}" data-tipo="main">Agente principal</button>
+        </div>
+        <label class="check"><input type="checkbox" id="p-vivo" ${n.live ? "checked" : ""} /><span class="box"></span>Ao vivo</label>
+        <button class="btn ghost-red sm" id="p-remover">${icon("x", "xs")}Remover IA</button>
+      </div>`;
+  }
+
+  function ligarPersonalizar(n) {
+    const atualizar = () => {
+      renderNodes(); renderEdges(); updateStats();
+      $("#p-av").innerHTML = avatarIA(n, "lg");
+      $("#p-nome-v").textContent = n.name;
+      $("#p-funcao-v").textContent = n.role;
+      $("#p-status-tag").textContent = n.live ? "online" : "offline";
+      const ini = $('#p-icones .ico-op[data-ico=""]');
+      if (ini) ini.textContent = initial(n.name || "?");
+      salvarRede();
+    };
+    $("#p-nome").addEventListener("input", (e) => { n.name = e.target.value.trim() || "IA"; atualizar(); });
+    $("#p-funcao").addEventListener("input", (e) => { n.role = e.target.value.trim() || "IA auxiliar"; atualizar(); });
+    const escolher = (grupo, attr, aplicar) => $$(`#${grupo} [data-${attr}]`).forEach((b) => b.addEventListener("click", () => {
+      $$(`#${grupo} [data-${attr}]`).forEach((x) => x.classList.toggle(x.classList.contains("seg") ? "active" : "on", x === b));
+      aplicar(b.dataset[attr]); atualizar();
+    }));
+    escolher("p-cores", "cor", (v) => { n.cor = v; });
+    escolher("p-icones", "ico", (v) => { n.icone = v || null; });
+    escolher("p-formas", "forma", (v) => { n.forma = v; });
+    escolher("p-tipo", "tipo", (v) => { n.kind = v; });
+    $("#p-vivo").addEventListener("change", (e) => { n.live = e.target.checked; atualizar(); });
+    $("#p-remover").addEventListener("click", () => removerIA(n.id));
+  }
+
+  function removerIA(id) {
+    const n = byId(id);
+    if (!n || n.type === "core") return;
+    state.nodes = state.nodes.filter((x) => x.id !== id);
+    state.edges = state.edges.filter((e) => e.from !== id && e.to !== id);
+    const i = servers.findIndex((s) => s.id === id);
+    if (i >= 0) servers.splice(i, 1);
+    salvarRede();
+    select(null); renderNodes(); renderEdges(); updateStats(); renderServers();
+    toast(`${n.name} removida da rede`);
+  }
+
+  /* ---------- seleção de várias IAs e conexões ---------- */
+  const multi = [];
+  let modoConectar = false;
+  const dica = document.createElement("div");
+  dica.className = "multi-dica glass-2";
+  dica.setAttribute("aria-live", "polite");
+  board.appendChild(dica);
+  function atualizarDica() {
+    const nomes = multi.map(nameOf);
+    let txt = "";
+    if (modoConectar) txt = multi.length ? `Origem: <b>${esc(nomes[0])}</b> · clique no destino` : "Modo conectar: clique na origem e depois no destino";
+    else if (multi.length) txt = `<b>${multi.length}</b> selecionada${multi.length > 1 ? "s" : ""}: ${esc(nomes.join(" → "))} · <kbd>C</kbd> conecta · <kbd>Esc</kbd> limpa`;
+    dica.innerHTML = txt;
+    dica.classList.toggle("on", !!txt);
+  }
+  function marcarMulti() { $$(".node, .core", nodesEl).forEach((el) => el.classList.toggle("multi", multi.includes(el.dataset.id))); }
+  function alternarMulti(id) {
+    const i = multi.indexOf(id);
+    if (i >= 0) multi.splice(i, 1); else multi.push(id);
+    marcarMulti(); atualizarDica();
+  }
+  function limparMulti() { multi.length = 0; marcarMulti(); atualizarDica(); }
+  function definirModo(conectar) {
+    modoConectar = conectar;
+    $$(".board-mode .seg").forEach((x) => x.classList.toggle("active", (x.textContent.trim() === "Conectar") === conectar));
+    board.classList.toggle("modo-conectar", conectar);
+    limparMulti();
+  }
+  function cliqueConectar(id) {
+    if (!multi.length) { multi.push(id); marcarMulti(); atualizarDica(); return; }
+    if (multi[0] === id) { limparMulti(); return; }
+    multi.push(id);
+    conectarSelecionadas();
+  }
+  function existeLinha(a, b) { return state.edges.some((e) => (e.from === a && e.to === b) || (e.from === b && e.to === a)); }
+  function conectarSelecionadas() {
+    if (multi.length < 2) { toast("Selecione 2 ou mais com Ctrl+clique e aperte C"); return; }
+    let novas = 0;
+    for (let i = 0; i < multi.length - 1; i++) {
+      const a = multi[i], b = multi[i + 1];
+      if (a === b || existeLinha(a, b)) continue;
+      state.edges.push({ id: "l" + Date.now().toString(36) + i, from: a, to: b, type: "cx", criado: true });
+      novas++;
+    }
+    const nomes = multi.map(nameOf).join(" → ");
+    limparMulti();
+    renderNodes(); renderEdges(); updateStats(); salvarRede();
+    toast(novas ? `${novas} linha${novas > 1 ? "s" : ""} conexiona${novas > 1 ? "is" : "l"} criada${novas > 1 ? "s" : ""}: ${nomes}` : "Essas IAs já estavam conectadas");
+  }
+  function apagarSelecionado() {
+    const sel = state.selected;
+    if (!sel) return;
+    if (sel.kind === "edge") {
+      const e = state.edges.find((x) => x.id === sel.id);
+      if (!e || !e.criado) { toast("Só dá para apagar linhas criadas por você"); return; }
+      state.edges = state.edges.filter((x) => x.id !== sel.id);
+      select(null); renderNodes(); renderEdges(); updateStats(); salvarRede();
+      toast(`Linha ${nameOf(e.from)} → ${nameOf(e.to)} apagada`);
+    } else if (byId(sel.id)?.type !== "core") removerIA(sel.id);
+  }
+
+  document.addEventListener("keydown", (e) => {
+    if (e.target.closest("input, textarea, select, [contenteditable]") || $("#modal").classList.contains("open")) return;
+    if (!$("#view-linhas").classList.contains("active")) return;
+    const k = e.key.toLowerCase();
+    if (k === "c" && !e.ctrlKey && !e.metaKey && !e.altKey) { e.preventDefault(); conectarSelecionadas(); }
+    else if (k === "escape") { limparMulti(); if (modoConectar) definirModo(false); }
+    else if (k === "delete" || k === "backspace") { e.preventDefault(); apagarSelecionado(); }
+  });
+
+  /* ---------- a rede criada fica salva neste navegador ---------- */
+  const CHAVE_REDE = "asafe.rede";
+  function salvarRede() {
+    try {
+      localStorage.setItem(CHAVE_REDE, JSON.stringify({
+        nodes: state.nodes.filter((n) => n.type !== "core"),
+        edges: state.edges.filter((e) => e.criado || state.nodes.some((n) => n.type !== "core" && (n.id === e.from || n.id === e.to))),
+      }));
+    } catch { /* sem armazenamento */ }
+  }
+  (function carregarRede() {
+    try {
+      const r = JSON.parse(localStorage.getItem(CHAVE_REDE) || "null");
+      if (!r) return;
+      for (const n of r.nodes || []) if (!byId(n.id)) state.nodes.push(n);
+      for (const e of r.edges || []) if (byId(e.from) && byId(e.to) && !state.edges.some((x) => x.id === e.id)) state.edges.push(e);
+    } catch { /* ignora rede salva corrompida */ }
   })();
 
   /* ---------------- inicialização ---------------- */
